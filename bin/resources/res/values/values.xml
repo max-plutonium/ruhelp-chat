@@ -2,8 +2,8 @@
 <resources>
 
     <!-- From: file:/D:/Projects/ruhelp_chat/res/values/strings.xml -->
-    <eat-comment/>
+    <eat-comment />
 
-    <string name="app_name">Pirotehnika-ruhelp Chat</string>
+    <string name="app_name">PirotehnikaRuhelp Chat</string>
 
 </resources>
