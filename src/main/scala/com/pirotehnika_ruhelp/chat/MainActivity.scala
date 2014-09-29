@@ -3,15 +3,16 @@ package com.pirotehnika_ruhelp.chat
 import java.io.IOException
 import java.util.Map
 
-import android.app.Activity
-import android.content.{Context, Intent}
+import android.app.{AlertDialog, Activity}
+import android.content.{DialogInterface, Context, Intent}
 import android.net.{ConnectivityManager, Uri}
 import android.os.{AsyncTask, Bundle}
 import android.preference.PreferenceManager
+import android.provider.Settings
 import android.util.Log
 import android.view.MenuItem.OnMenuItemClickListener
-import android.view.{Menu, MenuItem, View}
-import android.widget.{Button, TextView, Toast}
+import android.view.{Menu, MenuItem}
+import android.widget.{TextView, Toast}
 import org.jsoup.{Connection, Jsoup}
 
 class MainActivity extends Activity {
@@ -38,28 +39,54 @@ class MainActivity extends Activity {
     super.onCreateOptionsMenu(menu)
   }
 
+  private def getLoginListener: OnMenuItemClickListener = {
+    if(isNetworkAvailable)
+      if(userEntered) new OnMenuItemClickListener {
+          override def onMenuItemClick(item: MenuItem): Boolean = {
+            finish() // TODO
+            true
+          }
+        }
+      else new OnMenuItemClickListener {
+          override def onMenuItemClick(item: MenuItem): Boolean = {
+            worker = new Worker(enterUrl, chatUrl)
+            worker execute()
+            true
+          }
+        }
+
+    // Нет сети
+    else new OnMenuItemClickListener {
+        override def onMenuItemClick(item: MenuItem): Boolean = {
+          val builder = new AlertDialog.Builder(MainActivity.this)
+          builder setTitle R.string.chat_login_alert_title
+          builder setMessage R.string.chat_login_alert_msg
+
+          builder.setPositiveButton(R.string.chat_login_alert_yes,
+            new DialogInterface.OnClickListener {
+              override def onClick(dialog: DialogInterface, which: Int) =
+                startActivity(new Intent(Settings.ACTION_SETTINGS))
+            })
+
+          builder setNegativeButton(R.string.chat_login_alert_no,
+            new DialogInterface.OnClickListener {
+              override def onClick(dialog: DialogInterface, which: Int) =
+                Toast makeText(MainActivity.this,
+                  R.string.chat_login_alert_oncancel, Toast.LENGTH_LONG) show()
+            })
+
+          builder create() show()
+          true
+        }
+      }
+  }
+
   override def onPrepareOptionsMenu(menu: Menu): Boolean = {
     val mi = menu findItem R.id.menu_signing
     assert(mi ne null)
-    if(userEntered) {
-      mi setTitle R.string.chat_menu_sign_off
-      mi setOnMenuItemClickListener new OnMenuItemClickListener {
-        override def onMenuItemClick(item: MenuItem): Boolean = {
-          finish() // TODO
-          true
-        }
-      }
-    } else {
-      mi setTitle R.string.chat_menu_sign_on
-      mi setOnMenuItemClickListener new OnMenuItemClickListener {
-        override def onMenuItemClick(item: MenuItem): Boolean = {
-          worker = new Worker(enterUrl, chatUrl)
-          worker execute()
-          true
-        }
-      }
-    }
-
+    mi setTitle(if(userEntered) R.string.chat_menu_sign_off
+      else R.string.chat_menu_sign_on)
+    mi setOnMenuItemClickListener getLoginListener
     mi setEnabled(worker == null)
     super.onCreateOptionsMenu(menu)
   }
