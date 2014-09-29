@@ -1,6 +1,5 @@
 package com.pirotehnika_ruhelp.chat
 
-
 import java.net.UnknownHostException
 import java.util.Map
 

@@ -8,9 +8,10 @@
     <string name="chat_error_network">Ошибка сети</string>
     <string name="chat_menu.prefs">Настройки</string>
 
+    <string name="prefs.name">Настройки</string>
     <string name="prefs_user">Учётные данные</string>
     <string name="prefs_user2">Настройка учётных данных пользователя</string>
-    <string name="prefs_user_opts">Опции входа</string>
+    <string name="prefs_user.opts">Опции входа</string>
     <string name="prefs_user_name">Имя пользователя</string>
     <string name="prefs_user_pass">Пароль</string>
     <string name="prefs_user_remember">Запомнить меня</string>
