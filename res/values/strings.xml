@@ -4,6 +4,8 @@
 
     <string name="chat_enter">Вход</string>
     <string name="chat_exit">Выход</string>
+    <string name="chat_nonetwork">Сеть недоступна</string>
+    <string name="chat_error_network">Ошибка сети</string>
     <string name="chat_menu.prefs">Настройки</string>
 
     <string name="enter_name">Имя пользователя</string>
@@ -12,5 +14,4 @@
     <string name="enter_anonymous">Войти анонимно</string>
     <string name="enter_anonymous2">Не добавлять меня в список активных пользователей</string>
 
-    <string name="network_unawail">Сеть недоступна!</string>
 </resources>

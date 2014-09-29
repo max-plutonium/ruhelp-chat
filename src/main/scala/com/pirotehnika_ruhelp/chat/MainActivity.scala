@@ -1,5 +1,7 @@
 package com.pirotehnika_ruhelp.chat
 
+import java.net.UnknownHostException
+
 import android.app.Activity
 import android.content.{Context, Intent}
 import android.net.{ConnectivityManager, Uri}
@@ -25,6 +27,12 @@ class MainActivity extends Activity with View.OnClickListener {
     btnEnter setOnClickListener this
     btnExit setOnClickListener this
     self = this
+  }
+
+  override def onResume(): Unit = {
+    if(isNetworkAvailable) btnEnter setText R.string.chat_enter
+    else btnEnter setText R.string.chat_nonetwork
+    super.onResume()
   }
 
   override def onClick(v: View): Unit = v.getId match {
@@ -98,21 +106,23 @@ class MainActivity extends Activity with View.OnClickListener {
         LoginResult(authKey, resp.cookies)
 
       } catch {
+        case e: UnknownHostException => e.printStackTrace()
+          LoginResult(null, null)
         case e: Throwable => e.printStackTrace()
           LoginResult(null, null)
       }
     }
 
     override protected def onPostExecute(result: LoginResult): Unit = {
-      btnEnter setEnabled true
-      worker = null
       result match {
-        case LoginResult(null, null) => assert(false)
-        case LoginResult(a, c) => {
+        case LoginResult(null, null) =>
+          Toast makeText(MainActivity.this, R.string.chat_error_network, Toast.LENGTH_LONG) show()
+        case LoginResult(a, c) =>
           authKey = a
           cookies = c
-        }
       }
+      worker = null
+      btnEnter setEnabled true
       super.onPostExecute(result)
     }
   }
