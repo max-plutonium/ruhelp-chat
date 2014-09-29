@@ -1,7 +1,6 @@
 package com.pirotehnika_ruhelp.chat
 
-import java.io.IOException
-import java.util.Map
+import java.util
 
 import android.app.{ProgressDialog, AlertDialog, Activity}
 import android.content.{DialogInterface, Context, Intent}
@@ -10,7 +9,6 @@ import android.os.{AsyncTask, Bundle}
 import android.preference.PreferenceManager
 import android.provider.Settings
 import android.util.Log
-import android.view.MenuItem.OnMenuItemClickListener
 import android.view.{Menu, MenuItem}
 import android.widget.{TextView, Toast}
 import org.jsoup.nodes.Element
@@ -40,16 +38,16 @@ class MainActivity extends Activity {
     super.onCreateOptionsMenu(menu)
   }
 
-  private def getLoginListener: OnMenuItemClickListener = {
+  private def getLoginListener: MenuItem.OnMenuItemClickListener = {
     if(isNetworkAvailable)
-      if(userEntered) new OnMenuItemClickListener {
+      if(userEntered) new MenuItem.OnMenuItemClickListener {
           override def onMenuItemClick(item: MenuItem): Boolean = {
             worker = new LogoutWorker(logoutLink, chatCookies)
             worker execute()
             true
           }
         }
-      else new OnMenuItemClickListener {
+      else new MenuItem.OnMenuItemClickListener {
           override def onMenuItemClick(item: MenuItem): Boolean = {
             worker = new LoginWorker(enterUrl, chatUrl)
             worker execute()
@@ -58,7 +56,7 @@ class MainActivity extends Activity {
         }
 
     // Нет сети
-    else new OnMenuItemClickListener {
+    else new MenuItem.OnMenuItemClickListener {
         override def onMenuItemClick(item: MenuItem): Boolean = {
           val builder = new AlertDialog.Builder(MainActivity.this)
           builder setTitle R.string.chat_login_alert_title
@@ -172,7 +170,7 @@ class MainActivity extends Activity {
         Log i(TAG, "Connected to " + action)
         Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
 
-      } catch { case e: IOException =>
+      } catch { case e: java.io.IOException =>
         Log e(TAG, "Login failure, caused: " + e.getMessage)
         e.printStackTrace()
         return LoginResult(null, null, null)
@@ -232,7 +230,7 @@ class MainActivity extends Activity {
     }
   }
 
-  private class LogoutWorker(val logoutUrl: String, val cookies: Map[String, String])
+  private class LogoutWorker(val logoutUrl: String, val cookies: util.Map[String, String])
     extends Worker(2, R.string.chat_logout_progress_title) {
 
     override protected def doInBackground(params: AnyRef*): AnyRef = {
@@ -251,7 +249,7 @@ class MainActivity extends Activity {
         Log i(TAG, "Logout successful")
         AnyRef
 
-      } catch { case e: IOException =>
+      } catch { case e: java.io.IOException =>
         Log e(TAG, "Logout failure, caused: " + e.getMessage)
         e.printStackTrace()
         null
@@ -283,10 +281,10 @@ object MainActivity {
   private[chat] val enterUrl = siteUrl + "?app=core&module=global&section=login"
   private[chat] val chatUrl = siteUrl + "/shoutbox/"
 
-  private[MainActivity] case class LoginResult(authKey: String, logoutLink: String, cookies: Map[String, String])
+  private[MainActivity] case class LoginResult(authKey: String, logoutLink: String, cookies: util.Map[String, String])
   private[MainActivity] var authKey = ""
   private[MainActivity] var logoutLink = ""
-  private[MainActivity] var chatCookies: Map[String, String] = null
+  private[MainActivity] var chatCookies: util.Map[String, String] = null
   private[MainActivity] var userEntered = false
 
   private[chat] def isNetworkAvailable: Boolean = {
