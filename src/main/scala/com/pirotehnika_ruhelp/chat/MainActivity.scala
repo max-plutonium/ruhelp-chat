@@ -13,14 +13,13 @@ import android.util.Log
 import android.view.MenuItem.OnMenuItemClickListener
 import android.view.{Menu, MenuItem}
 import android.widget.{TextView, Toast}
-import org.jsoup.nodes.Element
 import org.jsoup.{Connection, Jsoup}
 
 class MainActivity extends Activity {
   import com.pirotehnika_ruhelp.chat.MainActivity._
   private lazy val textView = findViewById(R.id.chatText).asInstanceOf[TextView]
   private lazy val prefs = PreferenceManager getDefaultSharedPreferences this
-  private var worker: LoginWorker = null
+  private var worker: Worker = null
 
   override def onCreate(savedInstanceState: Bundle): Unit = {
     super.onCreate(savedInstanceState)
@@ -44,7 +43,8 @@ class MainActivity extends Activity {
     if(isNetworkAvailable)
       if(userEntered) new OnMenuItemClickListener {
           override def onMenuItemClick(item: MenuItem): Boolean = {
-            finish() // TODO
+            worker = new LogoutWorker(logoutLink, chatCookies)
+            worker execute()
             true
           }
         }
@@ -73,7 +73,7 @@ class MainActivity extends Activity {
             new DialogInterface.OnClickListener {
               override def onClick(dialog: DialogInterface, which: Int) =
                 Toast makeText(MainActivity.this,
-                  R.string.chat_login_alert_oncancel, Toast.LENGTH_LONG) show()
+                  R.string.chat_login_alert_on_cancel, Toast.LENGTH_LONG) show()
             })
 
           builder create() show()
@@ -93,48 +93,47 @@ class MainActivity extends Activity {
   }
 
   // See http://piotrbuda.eu/2012/12/scala-and-android-asynctask-implementation-problem.html
-  private class LoginWorker(val loginUrl: String, var chatUrl: String)
-    extends AsyncTask[AnyRef, AnyRef, LoginResult] {
+  private abstract class Worker(private val steps: Int, private val titleId: Int)
+    extends AsyncTask[AnyRef, AnyRef, AnyRef] {
 
     private val progressDialog = new ProgressDialog(MainActivity.this)
-    private val userName = prefs getString(getString(R.string.key_user_name), "")
-    private val userPass = prefs getString(getString(R.string.key_user_pass), "")
-    private val userRemember = prefs getBoolean(getString(R.string.key_user_remember), false)
-    private val userAnon = prefs getBoolean(getString(R.string.key_user_anon), false)
 
     override protected def onPreExecute(): Unit = {
       super.onPreExecute()
       assert(worker ne null)
-//      progressDialog setTitle "Progress"
+      progressDialog setTitle titleId
       progressDialog setMessage ""
       progressDialog setProgressStyle ProgressDialog.STYLE_HORIZONTAL
-      progressDialog setMax 5
+      progressDialog setMax steps
       progressDialog show()
     }
 
-    override protected def onProgressUpdate(values: AnyRef*): Unit = {
+    override protected def onPostExecute(result: AnyRef): Unit = {
+      super.onPostExecute(result)
+      progressDialog dismiss()
+      worker = null
+    }
+
+    override protected final def onProgressUpdate(values: AnyRef*): Unit = {
       val message = values.head.asInstanceOf[String]
+      assert(message ne null)
       progressDialog setProgress progressDialog.getProgress + 1
       progressDialog setMessage message
       super.onProgressUpdate(values: _*)
     }
 
-    override protected def onPostExecute(result: LoginResult): Unit = {
-      progressDialog dismiss()
-      userEntered = result match {
-        case LoginResult(null, null, null) =>
-          Toast makeText(MainActivity.this, R.string.chat_error_network,
-            Toast.LENGTH_LONG) show()
-          false
-        case LoginResult(a, l, c) =>
-          authKey = a; logoutLink = l; cookies = c
-          Toast makeText(MainActivity.this, R.string.chat_user_login,
-            Toast.LENGTH_LONG) show()
-          true
-      }
-      worker = null
-      super.onPostExecute(result)
-    }
+    override protected def onCancelled(result: AnyRef): Unit = super.onCancelled(result)
+    override protected def onCancelled(): Unit = super.onCancelled()
+    override protected def doInBackground(params: AnyRef*): AnyRef
+  }
+
+  private class LoginWorker(val loginUrl: String, val chatUrl: String)
+    extends Worker(5, R.string.chat_login_progress_title) {
+
+    private val userName = prefs getString(getString(R.string.key_user_name), "")
+    private val userPass = prefs getString(getString(R.string.key_user_pass), "")
+    private val userRemember = prefs getBoolean(getString(R.string.key_user_remember), false)
+    private val userAnon = prefs getBoolean(getString(R.string.key_user_anon), false)
 
     override protected def doInBackground(params: AnyRef*): LoginResult = {
       var resp: Connection.Response = null
@@ -173,6 +172,13 @@ class MainActivity extends Activity {
         Log i(TAG, "Connected to " + action)
         Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
 
+      } catch { case e: IOException =>
+        Log e(TAG, "Login failure, caused: " + e.getMessage)
+        e.printStackTrace()
+        LoginResult(null, null, null)
+      }
+
+      try {
         // Поиск и сохранение ссылки для выхода
         val link = resp parse() getElementsByAttributeValueStarting("href",
           enterUrl + "&do=logout") get 0 attr "href"
@@ -181,10 +187,71 @@ class MainActivity extends Activity {
         Log i(TAG, "Login successful")
         LoginResult(authKey, link, resp.cookies)
 
+      } catch { case e: IndexOutOfBoundsException =>
+        Log e(TAG, "Login failure, caused: " + e.getMessage)
+        e.printStackTrace()
+        LoginResult("", null, null)
+      }
+    }
+
+    override protected def onPostExecute(result: AnyRef): Unit = {
+      super.onPostExecute(result)
+      userEntered = result.asInstanceOf[LoginResult] match {
+        case LoginResult(null, null, null) =>
+          Toast makeText(MainActivity.this, R.string.chat_error_network,
+            Toast.LENGTH_LONG) show()
+          false
+        case LoginResult(a, null, null) if a.isEmpty =>
+          Toast makeText(MainActivity.this, R.string.chat_error_user,
+            Toast.LENGTH_LONG) show()
+          false
+        case LoginResult(a, l, c) =>
+          authKey = a; logoutLink = l; chatCookies = c
+          Toast makeText(MainActivity.this, R.string.chat_user_login,
+            Toast.LENGTH_LONG) show()
+          true
+      }
+    }
+  }
+
+  private class LogoutWorker(val logoutUrl: String, val cookies: Map[String, String])
+    extends Worker(2, R.string.chat_logout_progress_title) {
+
+    override protected def doInBackground(params: AnyRef*): AnyRef = {
+
+      try {
+        publishProgress("Logout from forum...")
+        Log i(TAG, "Logout from " + logoutUrl)
+
+        val resp = Jsoup.connect(logoutUrl).cookies(cookies)
+          .method(Connection.Method.GET).execute()
+
+        Log i(TAG, "Connected to " + logoutUrl)
+        Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
+
+        publishProgress("Logout success")
+        Log i(TAG, "Logout successful")
+        AnyRef
+
       } catch { case e: IOException =>
-          Log e(TAG, "Login failure, caused: " + e.getMessage)
-          e.printStackTrace()
-          LoginResult(null, null, null)
+        Log e(TAG, "Logout failure, caused: " + e.getMessage)
+        e.printStackTrace()
+        null
+      }
+    }
+
+    override protected def onPostExecute(result: AnyRef): Unit = {
+      super.onPostExecute(result)
+      userEntered = result match {
+        case null =>
+          Toast makeText(MainActivity.this, R.string.chat_error_network,
+            Toast.LENGTH_LONG) show()
+          true
+        case AnyRef =>
+          authKey = ""; logoutLink = ""; chatCookies = null
+          Toast makeText(MainActivity.this, R.string.chat_user_logout,
+            Toast.LENGTH_LONG) show()
+          false
       }
     }
   }
@@ -201,7 +268,7 @@ object MainActivity {
   private[MainActivity] case class LoginResult(authKey: String, logoutLink: String, cookies: Map[String, String])
   private[MainActivity] var authKey = ""
   private[MainActivity] var logoutLink = ""
-  private[MainActivity] var cookies: Map[String, String] = null
+  private[MainActivity] var chatCookies: Map[String, String] = null
   private[MainActivity] var userEntered = false
 
   private[chat] def isNetworkAvailable: Boolean = {
