@@ -4,11 +4,21 @@
 
     <string name="chat_user_login">Вы зашли</string>
     <string name="chat_user_logout">Вы вышли</string>
+
+    <string name="chat_login.alert_title">Передача данных</string>
+    <string name="chat_login.alert_msg">Передача данных отключена.
+        Перейти к настройкам интернета?</string>
+    <string name="chat_login.alert_yes">Да</string>
+    <string name="chat_login.alert_no">Нет</string>
+    <string name="chat_login.alert_oncancel">Передача данных не доступна</string>
+
     <string name="chat_network_unawail">Сеть недоступна</string>
     <string name="chat_error_network">Ошибка сети</string>
+
     <string name="chat_menu.prefs.name">Настройки</string>
     <string name="chat_menu.sign_on">Войти</string>
     <string name="chat_menu.sign_off">Выйти</string>
+
 
     <string name="prefs.name">Настройки</string>
     <string name="prefs_user">Учётные данные</string>
