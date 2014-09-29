@@ -2,5 +2,7 @@
 
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:id="@+id/menu_prefs"
-          android:title="@string/chat_menu.prefs" />
+          android:title="@string/chat_menu.prefs.name" />
+    <item android:id="@+id/menu_signing"
+          android:title="@string/chat_menu.sign_on" />
 </menu>

@@ -2,11 +2,13 @@
 <resources>
     <string name="app_name">PirotehnikaRuhelp Chat</string>
 
-    <string name="chat_enter">Вход</string>
-    <string name="chat_exit">Выход</string>
-    <string name="chat_nonetwork">Сеть недоступна</string>
+    <string name="chat_user_login">Вы зашли</string>
+    <string name="chat_user_logout">Вы вышли</string>
+    <string name="chat_network_unawail">Сеть недоступна</string>
     <string name="chat_error_network">Ошибка сети</string>
-    <string name="chat_menu.prefs">Настройки</string>
+    <string name="chat_menu.prefs.name">Настройки</string>
+    <string name="chat_menu.sign_on">Войти</string>
+    <string name="chat_menu.sign_off">Выйти</string>
 
     <string name="prefs.name">Настройки</string>
     <string name="prefs_user">Учётные данные</string>
@@ -14,8 +16,8 @@
     <string name="prefs_user.opts">Опции входа</string>
     <string name="prefs_user_name">Имя пользователя</string>
     <string name="prefs_user_pass">Пароль</string>
-    <string name="prefs_user_remember">Запомнить меня</string>
-    <string name="prefs_user_anon">Войти анонимно</string>
+    <string name="prefs_user_remember">Запоминать меня</string>
+    <string name="prefs_user_anon">Входить анонимно</string>
     <string name="prefs_user_anon2">Не добавлять меня в список активных пользователей</string>
 
 </resources>
