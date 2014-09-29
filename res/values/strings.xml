@@ -8,10 +8,13 @@
     <string name="chat_error_network">Ошибка сети</string>
     <string name="chat_menu.prefs">Настройки</string>
 
-    <string name="enter_name">Имя пользователя</string>
-    <string name="enter_pass">Пароль</string>
-    <string name="enter_remember">Запомнить меня</string>
-    <string name="enter_anonymous">Войти анонимно</string>
-    <string name="enter_anonymous2">Не добавлять меня в список активных пользователей</string>
+    <string name="prefs_user">Учётные данные</string>
+    <string name="prefs_user2">Настройка учётных данных пользователя</string>
+    <string name="prefs_user_opts">Опции входа</string>
+    <string name="prefs_user_name">Имя пользователя</string>
+    <string name="prefs_user_pass">Пароль</string>
+    <string name="prefs_user_remember">Запомнить меня</string>
+    <string name="prefs_user_anon">Войти анонимно</string>
+    <string name="prefs_user_anon2">Не добавлять меня в список активных пользователей</string>
 
 </resources>
