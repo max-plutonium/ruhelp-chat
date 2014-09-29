@@ -13,6 +13,7 @@ import android.util.Log
 import android.view.MenuItem.OnMenuItemClickListener
 import android.view.{Menu, MenuItem}
 import android.widget.{TextView, Toast}
+import org.jsoup.nodes.Element
 import org.jsoup.{Connection, Jsoup}
 
 class MainActivity extends Activity {
@@ -168,19 +169,32 @@ class MainActivity extends Activity {
           .data(getString(R.string.key_form_anon), if (userAnon) "1" else "0")
           .method(method).execute()
 
-        publishProgress("Parse result...")
         Log i(TAG, "Connected to " + action)
         Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
 
       } catch { case e: IOException =>
         Log e(TAG, "Login failure, caused: " + e.getMessage)
         e.printStackTrace()
-        LoginResult(null, null, null)
+        return LoginResult(null, null, null)
       }
 
       try {
+        publishProgress("Parse result...")
+        Log i(TAG, "Parse result")
+        val doc = resp parse()
+        val res = doc getElementsByTag "p" toArray() find (item => {
+            !item.asInstanceOf[Element].getElementsByAttributeValue("class",
+              getString(R.string.key_form_login_error_class)).isEmpty
+          })
+
+        if(res.isDefined) {
+          val msg = res.get.asInstanceOf[Element].text
+          Log e(TAG, "Login failure, caused: " + msg)
+          return LoginResult("", msg, null)
+        }
+
         // Поиск и сохранение ссылки для выхода
-        val link = resp parse() getElementsByAttributeValueStarting("href",
+        val link = doc getElementsByAttributeValueStarting("href",
           enterUrl + "&do=logout") get 0 attr "href"
 
         publishProgress("Login success")
@@ -204,6 +218,10 @@ class MainActivity extends Activity {
         case LoginResult(a, null, null) if a.isEmpty =>
           Toast makeText(MainActivity.this, R.string.chat_error_user,
             Toast.LENGTH_LONG) show()
+          false
+        case LoginResult(a, errorString, null) if a.isEmpty =>
+          Toast makeText(MainActivity.this, getString(R.string.chat_error_login)
+            + "\n" + errorString, Toast.LENGTH_LONG) show()
           false
         case LoginResult(a, l, c) =>
           authKey = a; logoutLink = l; chatCookies = c

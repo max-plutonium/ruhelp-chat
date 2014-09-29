@@ -15,6 +15,7 @@
     <string name="chat_login_progress_title">Вход на форум</string>
     <string name="chat_logout_progress_title">Выход с форума</string>
 
+    <string name="chat_error_login">Сообщение форума:</string>
     <string name="chat_error_network">Ошибка сети</string>
     <string name="chat_error_user">Неверные имя/пароль</string>
 
