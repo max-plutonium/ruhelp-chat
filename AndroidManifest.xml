@@ -14,7 +14,8 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <activity android:name=".PreferenceActivity" />
+        <activity android:name=".PreferenceActivity"
+                android:label="@string/prefs.name"/>
         <activity android:name=".BrowserActivity"/>
     </application>
 </manifest>
