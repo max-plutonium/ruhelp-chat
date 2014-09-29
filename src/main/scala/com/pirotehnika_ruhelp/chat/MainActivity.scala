@@ -5,7 +5,7 @@ import java.util.Map
 
 import android.app.{ProgressDialog, AlertDialog, Activity}
 import android.content.{DialogInterface, Context, Intent}
-import android.net.{ConnectivityManager, Uri}
+import android.net.ConnectivityManager
 import android.os.{AsyncTask, Bundle}
 import android.preference.PreferenceManager
 import android.provider.Settings
@@ -13,6 +13,7 @@ import android.util.Log
 import android.view.MenuItem.OnMenuItemClickListener
 import android.view.{Menu, MenuItem}
 import android.widget.{TextView, Toast}
+import org.jsoup.nodes.Element
 import org.jsoup.{Connection, Jsoup}
 
 class MainActivity extends Activity {
@@ -92,7 +93,7 @@ class MainActivity extends Activity {
   }
 
   // See http://piotrbuda.eu/2012/12/scala-and-android-asynctask-implementation-problem.html
-  private class LoginWorker(val loginUrl: Uri, var chatUrl: Uri)
+  private class LoginWorker(val loginUrl: String, var chatUrl: String)
     extends AsyncTask[AnyRef, AnyRef, LoginResult] {
 
     private val progressDialog = new ProgressDialog(MainActivity.this)
@@ -121,13 +122,14 @@ class MainActivity extends Activity {
     override protected def onPostExecute(result: LoginResult): Unit = {
       progressDialog dismiss()
       userEntered = result match {
-        case LoginResult(null, null) =>
-          Toast makeText(MainActivity.this, R.string.chat_error_network, Toast.LENGTH_LONG) show()
+        case LoginResult(null, null, null) =>
+          Toast makeText(MainActivity.this, R.string.chat_error_network,
+            Toast.LENGTH_LONG) show()
           false
-        case LoginResult(a, c) =>
-          authKey = a
-          cookies = c
-          Toast makeText(MainActivity.this, R.string.chat_user_login, Toast.LENGTH_LONG) show()
+        case LoginResult(a, l, c) =>
+          authKey = a; logoutLink = l; cookies = c
+          Toast makeText(MainActivity.this, R.string.chat_user_login,
+            Toast.LENGTH_LONG) show()
           true
       }
       worker = null
@@ -140,7 +142,7 @@ class MainActivity extends Activity {
       try {
         publishProgress("Connect to forum...")
         Log i(TAG, "Request login info from " + loginUrl)
-        resp = Jsoup.connect(loginUrl toString)
+        resp = Jsoup.connect(loginUrl)
           .method(Connection.Method.GET).execute()
 
         publishProgress("Connected. Parse login form...")
@@ -157,9 +159,10 @@ class MainActivity extends Activity {
 
         publishProgress("Send login info to forum...")
         Log i(TAG, "Send login info to " + action)
+
         resp = Jsoup.connect(action)
           .data(getString(R.string.key_form_auth), authKey)
-          .data(getString(R.string.key_form_referrer), chatUrl toString)
+          .data(getString(R.string.key_form_referrer), chatUrl)
           .data(getString(R.string.key_form_name), userName)
           .data(getString(R.string.key_form_pass), userPass)
           .data(getString(R.string.key_form_remember), if (userRemember) "1" else "0")
@@ -169,19 +172,19 @@ class MainActivity extends Activity {
         publishProgress("Parse result...")
         Log i(TAG, "Connected to " + action)
         Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
-        Log i(TAG, "Login successful")
 
-//        <a href="http://pirotehnika-ruhelp.com/index.php
-//        ?app=core&module=global&section=login&do=logout" title="Выход">Выход</a>
-//        val doc = resp parse()
-//        doc getElementsByAttributeValueMatching()
+        // Поиск и сохранение ссылки для выхода
+        val link = resp parse() getElementsByAttributeValueStarting("href",
+          enterUrl + "&do=logout") get 0 attr "href"
+
         publishProgress("Login success")
-        LoginResult(authKey, resp.cookies)
+        Log i(TAG, "Login successful")
+        LoginResult(authKey, link, resp.cookies)
 
       } catch { case e: IOException =>
           Log e(TAG, "Login failure, caused: " + e.getMessage)
           e.printStackTrace()
-          LoginResult(null, null)
+          LoginResult(null, null, null)
       }
     }
   }
@@ -191,15 +194,15 @@ object MainActivity {
   private[MainActivity] val TAG = classOf[MainActivity].getCanonicalName
   private[MainActivity] var self: MainActivity = null
 
-  private[chat] val siteUrl = Uri parse "http://pirotehnika-ruhelp.com/index.php"
-  private[chat] val enterUrl = Uri withAppendedPath(siteUrl, "?app=core&module=global&section=login")
-  private[chat] val chatUrl = Uri withAppendedPath(siteUrl, "/shoutbox/")
+  private[chat] val siteUrl = "http://pirotehnika-ruhelp.com/index.php"
+  private[chat] val enterUrl = siteUrl + "?app=core&module=global&section=login"
+  private[chat] val chatUrl = siteUrl + "/shoutbox/"
 
-  private[MainActivity] case class LoginResult(authKey: String, cookies: Map[String, String])
+  private[MainActivity] case class LoginResult(authKey: String, logoutLink: String, cookies: Map[String, String])
   private[MainActivity] var authKey = ""
+  private[MainActivity] var logoutLink = ""
   private[MainActivity] var cookies: Map[String, String] = null
   private[MainActivity] var userEntered = false
-  private[MainActivity] var logoutLink = ""
 
   private[chat] def isNetworkAvailable: Boolean = {
     val cm = self.getSystemService(Context.CONNECTIVITY_SERVICE).asInstanceOf[ConnectivityManager]
