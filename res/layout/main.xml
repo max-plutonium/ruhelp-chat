@@ -11,7 +11,7 @@
             android:layout_margin="30dp"
             android:orientation="vertical">
         <TextView
-                android:id="@+id/textView"
+                android:id="@+id/chatText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
@@ -19,18 +19,18 @@
                 android:text="">
         </TextView>
         <Button
-                android:id="@+id/btnOk"
+                android:id="@+id/chatEnter"
                 android:layout_width="100dp"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:text="@string/register_user">
+                android:text="@string/chat_enter">
         </Button>
         <Button
-                android:id="@+id/btnCancel"
+                android:id="@+id/chatExit"
                 android:layout_width="100dp"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:text="@string/exit_app">
+                android:text="@string/chat_exit">
         </Button>
     </LinearLayout>
 </LinearLayout>

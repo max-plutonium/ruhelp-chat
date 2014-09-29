@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_height="fill_parent"
+        android:layout_width="fill_parent">
+    <EditTextPreference
+            android:key="@string/pref_user_name"
+            android:inputType="textPersonName"
+            android:title="@string/enter_name" />
+    <EditTextPreference
+            android:key="@string/pref_user_pass"
+            android:inputType="textPassword"
+            android:title="@string/enter_pass" />
+
+    <CheckBoxPreference
+            android:key="@string/pref_user_remember"
+            android:title="@string/enter_remember" />
+    <CheckBoxPreference
+            android:key="@string/pref_user_anon"
+            android:title="@string/enter_anonymous"
+            android:summary="@string/enter_anonymous2" />
+</PreferenceScreen>

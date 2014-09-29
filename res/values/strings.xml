@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">PirotehnikaRuhelp Chat</string>
-    <string name="register_user">Регистрация</string>
-    <string name="exit_app">Выход</string>
-    <string name="enter_user">Вход</string>
-    <string name="remember_me">Запомнить меня</string>
+
+    <string name="chat_enter">Вход</string>
+    <string name="chat_exit">Выход</string>
+    <string name="chat_menu.prefs">Настройки</string>
+
+    <string name="enter_name">Имя пользователя</string>
+    <string name="enter_pass">Пароль</string>
+    <string name="enter_remember">Запомнить меня</string>
     <string name="enter_anonymous">Войти анонимно</string>
     <string name="enter_anonymous2">Не добавлять меня в список активных пользователей</string>
+
     <string name="network_unawail">Сеть недоступна!</string>
-    <string name="menu.login">Войти</string>
 </resources>

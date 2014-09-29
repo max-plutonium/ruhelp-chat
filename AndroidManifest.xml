@@ -14,7 +14,7 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <activity android:name=".RegisterActivity" />
+        <activity android:name=".PreferenceActivity" />
         <activity android:name=".BrowserActivity"/>
     </application>
 </manifest>
