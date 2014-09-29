@@ -3,7 +3,7 @@ package com.pirotehnika_ruhelp.chat
 import java.io.IOException
 import java.util.Map
 
-import android.app.{AlertDialog, Activity}
+import android.app.{ProgressDialog, AlertDialog, Activity}
 import android.content.{DialogInterface, Context, Intent}
 import android.net.{ConnectivityManager, Uri}
 import android.os.{AsyncTask, Bundle}
@@ -19,7 +19,7 @@ class MainActivity extends Activity {
   import com.pirotehnika_ruhelp.chat.MainActivity._
   private lazy val textView = findViewById(R.id.chatText).asInstanceOf[TextView]
   private lazy val prefs = PreferenceManager getDefaultSharedPreferences this
-  private var worker: Worker = null
+  private var worker: LoginWorker = null
 
   override def onCreate(savedInstanceState: Bundle): Unit = {
     super.onCreate(savedInstanceState)
@@ -49,7 +49,7 @@ class MainActivity extends Activity {
         }
       else new OnMenuItemClickListener {
           override def onMenuItemClick(item: MenuItem): Boolean = {
-            worker = new Worker(enterUrl, chatUrl)
+            worker = new LoginWorker(enterUrl, chatUrl)
             worker execute()
             true
           }
@@ -92,62 +92,34 @@ class MainActivity extends Activity {
   }
 
   // See http://piotrbuda.eu/2012/12/scala-and-android-asynctask-implementation-problem.html
-  private class Worker(val loginUrl: Uri, var chatUrl: Uri)
-    extends AsyncTask[AnyRef, Void, LoginResult] {
+  private class LoginWorker(val loginUrl: Uri, var chatUrl: Uri)
+    extends AsyncTask[AnyRef, AnyRef, LoginResult] {
 
-    val userName = prefs getString(getString(R.string.key_user_name), "")
-    val userPass = prefs getString(getString(R.string.key_user_pass), "")
-    val userRemember = prefs getBoolean(getString(R.string.key_user_remember), false)
-    val userAnon = prefs getBoolean(getString(R.string.key_user_anon), false)
+    private val progressDialog = new ProgressDialog(MainActivity.this)
+    private val userName = prefs getString(getString(R.string.key_user_name), "")
+    private val userPass = prefs getString(getString(R.string.key_user_pass), "")
+    private val userRemember = prefs getBoolean(getString(R.string.key_user_remember), false)
+    private val userAnon = prefs getBoolean(getString(R.string.key_user_anon), false)
 
     override protected def onPreExecute(): Unit = {
       super.onPreExecute()
       assert(worker ne null)
+//      progressDialog setTitle "Progress"
+      progressDialog setMessage ""
+      progressDialog setProgressStyle ProgressDialog.STYLE_HORIZONTAL
+      progressDialog setMax 5
+      progressDialog show()
     }
 
-    override protected def doInBackground(params: AnyRef*): LoginResult = {
-      var resp: Connection.Response = null
-
-      try {
-        Log i(TAG, "Request login info from " + loginUrl)
-        resp = Jsoup.connect(loginUrl toString)
-          .method(Connection.Method.GET).execute()
-        Log i(TAG, "Connected to " + loginUrl)
-        Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
-
-        val form = resp parse() getElementsByTag "form" forms() get 0
-        val authKey = form getElementsByAttributeValue("name",
-          getString(R.string.key_form_auth)) `val`()
-
-        val action = if (form.hasAttr("action"))
-          form.absUrl("action") else form.baseUri()
-
-        val method = if (form.attr("method").toUpperCase.equals("POST"))
-          Connection.Method.POST else Connection.Method.GET
-
-        Log i(TAG, "Send login info to " + action)
-        resp = Jsoup.connect(action)
-          .data(getString(R.string.key_form_auth), authKey)
-          .data(getString(R.string.key_form_referrer), chatUrl toString)
-          .data(getString(R.string.key_form_name), userName)
-          .data(getString(R.string.key_form_pass), userPass)
-          .data(getString(R.string.key_form_remember), if (userRemember) "1" else "0")
-          .data(getString(R.string.key_form_anon), if (userAnon) "1" else "0")
-          .method(method).execute()
-
-        Log i(TAG, "Connected to " + action)
-        Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
-        Log i(TAG, "Login successful")
-        LoginResult(authKey, resp.cookies)
-
-      } catch { case e: IOException =>
-          Log e(TAG, "Login failure, caused: " + e.getMessage)
-          e.printStackTrace()
-          LoginResult(null, null)
-      }
+    override protected def onProgressUpdate(values: AnyRef*): Unit = {
+      val message = values.head.asInstanceOf[String]
+      progressDialog setProgress progressDialog.getProgress + 1
+      progressDialog setMessage message
+      super.onProgressUpdate(values: _*)
     }
 
     override protected def onPostExecute(result: LoginResult): Unit = {
+      progressDialog dismiss()
       userEntered = result match {
         case LoginResult(null, null) =>
           Toast makeText(MainActivity.this, R.string.chat_error_network, Toast.LENGTH_LONG) show()
@@ -160,6 +132,57 @@ class MainActivity extends Activity {
       }
       worker = null
       super.onPostExecute(result)
+    }
+
+    override protected def doInBackground(params: AnyRef*): LoginResult = {
+      var resp: Connection.Response = null
+
+      try {
+        publishProgress("Connect to forum...")
+        Log i(TAG, "Request login info from " + loginUrl)
+        resp = Jsoup.connect(loginUrl toString)
+          .method(Connection.Method.GET).execute()
+
+        publishProgress("Connected. Parse login form...")
+        Log i(TAG, "Connected to " + loginUrl)
+        Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
+
+        val form = resp parse() getElementsByTag "form" forms() get 0
+        val authKey = form getElementsByAttributeValue("name",
+          getString(R.string.key_form_auth)) `val`()
+        val action = if (form.hasAttr("action"))
+          form.absUrl("action") else form.baseUri()
+        val method = if (form.attr("method").toUpperCase.equals("POST"))
+          Connection.Method.POST else Connection.Method.GET
+
+        publishProgress("Send login info to forum...")
+        Log i(TAG, "Send login info to " + action)
+        resp = Jsoup.connect(action)
+          .data(getString(R.string.key_form_auth), authKey)
+          .data(getString(R.string.key_form_referrer), chatUrl toString)
+          .data(getString(R.string.key_form_name), userName)
+          .data(getString(R.string.key_form_pass), userPass)
+          .data(getString(R.string.key_form_remember), if (userRemember) "1" else "0")
+          .data(getString(R.string.key_form_anon), if (userAnon) "1" else "0")
+          .method(method).execute()
+
+        publishProgress("Parse result...")
+        Log i(TAG, "Connected to " + action)
+        Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
+        Log i(TAG, "Login successful")
+
+//        <a href="http://pirotehnika-ruhelp.com/index.php
+//        ?app=core&module=global&section=login&do=logout" title="Выход">Выход</a>
+//        val doc = resp parse()
+//        doc getElementsByAttributeValueMatching()
+        publishProgress("Login success")
+        LoginResult(authKey, resp.cookies)
+
+      } catch { case e: IOException =>
+          Log e(TAG, "Login failure, caused: " + e.getMessage)
+          e.printStackTrace()
+          LoginResult(null, null)
+      }
     }
   }
 }
@@ -176,6 +199,7 @@ object MainActivity {
   private[MainActivity] var authKey = ""
   private[MainActivity] var cookies: Map[String, String] = null
   private[MainActivity] var userEntered = false
+  private[MainActivity] var logoutLink = ""
 
   private[chat] def isNetworkAvailable: Boolean = {
     val cm = self.getSystemService(Context.CONNECTIVITY_SERVICE).asInstanceOf[ConnectivityManager]
