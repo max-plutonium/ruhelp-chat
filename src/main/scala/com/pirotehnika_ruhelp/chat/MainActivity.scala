@@ -1,6 +1,8 @@
 package com.pirotehnika_ruhelp.chat
 
+
 import java.net.UnknownHostException
+import java.util.Map
 
 import android.app.Activity
 import android.content.{Context, Intent}
@@ -8,10 +10,9 @@ import android.net.{ConnectivityManager, Uri}
 import android.os.{AsyncTask, Bundle}
 import android.preference.PreferenceManager
 import android.util.Log
-import android.view.{MenuItem, Menu, View}
-import android.widget.{Toast, Button, TextView}
-import java.util.Map
-import org.jsoup.{Jsoup, Connection}
+import android.view.{Menu, MenuItem, View}
+import android.widget.{Button, TextView, Toast}
+import org.jsoup.{Connection, Jsoup}
 
 class MainActivity extends Activity with View.OnClickListener {
   private lazy val textView = findViewById(R.id.chatText).asInstanceOf[TextView]
@@ -19,7 +20,7 @@ class MainActivity extends Activity with View.OnClickListener {
   private lazy val btnExit = findViewById(R.id.chatExit).asInstanceOf[Button]
   private lazy val prefs = PreferenceManager getDefaultSharedPreferences this
   private var worker: Worker = null
-  import MainActivity._
+  import com.pirotehnika_ruhelp.chat.MainActivity._
 
   override def onCreate(savedInstanceState: Bundle): Unit = {
     super.onCreate(savedInstanceState)
@@ -58,10 +59,10 @@ class MainActivity extends Activity with View.OnClickListener {
   private class Worker(val loginUrl: Uri, var chatUrl: Uri)
     extends AsyncTask[AnyRef, Void, LoginResult] {
 
-    val userName = prefs getString(getString(R.string.pref_user_name), "")
-    val userPass = prefs getString(getString(R.string.pref_user_pass), "")
-    val userRemember = prefs getBoolean(getString(R.string.pref_user_remember), false)
-    val userAnon = prefs getBoolean(getString(R.string.pref_user_anon), false)
+    val userName = prefs getString(getString(R.string.key_user_name), "")
+    val userPass = prefs getString(getString(R.string.key_user_pass), "")
+    val userRemember = prefs getBoolean(getString(R.string.key_user_remember), false)
+    val userAnon = prefs getBoolean(getString(R.string.key_user_anon), false)
 
     override protected def onPreExecute(): Unit = {
       super.onPreExecute()
@@ -81,7 +82,7 @@ class MainActivity extends Activity with View.OnClickListener {
 
         val form = resp parse() getElementsByTag "form" forms() get 0
         val authKey = form getElementsByAttributeValue("name",
-          getString(R.string.form_key)) `val`()
+          getString(R.string.key_form_auth)) `val`()
 
         val action = if (form.hasAttr("action"))
           form.absUrl("action") else form.baseUri()
@@ -91,12 +92,12 @@ class MainActivity extends Activity with View.OnClickListener {
 
         Log i(TAG, "Send registration info to " + action)
         resp = Jsoup.connect(action)
-          .data(getString(R.string.form_key), authKey)
-          .data(getString(R.string.form_referrer), chatUrl toString)
-          .data(getString(R.string.form_name), userName)
-          .data(getString(R.string.form_pass), userPass)
-          .data(getString(R.string.form_remember), if (userRemember) "1" else "0")
-          .data(getString(R.string.form_anon), if (userAnon) "1" else "0")
+          .data(getString(R.string.key_form_auth), authKey)
+          .data(getString(R.string.key_form_referrer), chatUrl toString)
+          .data(getString(R.string.key_form_name), userName)
+          .data(getString(R.string.key_form_pass), userPass)
+          .data(getString(R.string.key_form_remember), if (userRemember) "1" else "0")
+          .data(getString(R.string.key_form_anon), if (userAnon) "1" else "0")
           .method(method).execute()
 
         Log i(TAG, "Connected to " + action)
