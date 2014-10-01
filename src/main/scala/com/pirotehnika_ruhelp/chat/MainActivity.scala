@@ -1,33 +1,66 @@
 package com.pirotehnika_ruhelp.chat
 
-import java.util
+import collection.immutable.{HashMap, Map}
 
 import android.app.{ProgressDialog, AlertDialog, Activity}
 import android.content.{DialogInterface, Context, Intent}
-import android.net.ConnectivityManager
-import android.os.{AsyncTask, Bundle}
+import android.net.{Uri, ConnectivityManager}
+import android.os._
 import android.preference.PreferenceManager
 import android.provider.Settings
 import android.util.Log
 import android.view.{Menu, MenuItem}
-import android.widget.{TextView, Toast}
+import android.widget._
 import org.jsoup.nodes.Element
 import org.jsoup.{Connection, Jsoup}
 
 class MainActivity extends Activity {
-  import com.pirotehnika_ruhelp.chat.MainActivity._
-  private lazy val textView = findViewById(R.id.chatText).asInstanceOf[TextView]
-  private lazy val prefs = PreferenceManager getDefaultSharedPreferences this
-  private var worker: Worker = null
+  private var signingWorker: SigningWorker = null
+  private var workerStarted = false
+  private val guiHandler: Handler = new GuiHandler
+  private var workerHandler: Handler = null
+  private val workerThread: HandlerThread =
+    new HandlerThread("Chat Worker") {
+      override protected def onLooperPrepared() =
+        workerHandler = new ChatHandler(getLooper)
 
-  override def onCreate(savedInstanceState: Bundle): Unit = {
+      override def start() = super.start()
+
+      override def quit = {
+        val ret = super.quit()
+        try { join() }
+        catch { case e: InterruptedException => }
+        ret
+      }
+    }
+
+  import MainActivity._
+  private lazy val prefs = PreferenceManager getDefaultSharedPreferences this
+  private lazy val lstChat = findViewById(R.id.lstChat).asInstanceOf[ListView]
+  private val arrayList = new java.util.ArrayList[java.util.Map[String, String]]
+  private lazy val listAdapter = new SimpleAdapter(this, arrayList, R.layout.chatlist_item,
+    Array("name", "timestamp", "text"), Array(R.id.tvName, R.id.tvDate, R.id.tvText))
+
+  override protected def onCreate(savedInstanceState: Bundle) = {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.main)
     self = this
+    lstChat setAdapter listAdapter
+    lstChat requestFocusFromTouch()
   }
 
-  override def onResume(): Unit = {
+  override protected def onResume() = {
     super.onResume()
+    if(!workerStarted) {
+      workerThread start()
+      workerStarted = true
+    }
+  }
+
+  override protected def onPause() = {
+    super.onPause()
+//    workerThread quit()
+//    guiHandler removeMessages() TODO
   }
 
   override def onCreateOptionsMenu(menu: Menu) = {
@@ -42,15 +75,17 @@ class MainActivity extends Activity {
     if(isNetworkAvailable)
       if(userEntered) new MenuItem.OnMenuItemClickListener {
           override def onMenuItemClick(item: MenuItem): Boolean = {
-            worker = new LogoutWorker(logoutLink, chatCookies)
-            worker execute()
+            assert(signingWorker eq null)
+            signingWorker = new LogoutWorker(secureHash, chatCookies)
+            signingWorker execute()
             true
           }
         }
       else new MenuItem.OnMenuItemClickListener {
           override def onMenuItemClick(item: MenuItem): Boolean = {
-            worker = new LoginWorker(enterUrl, chatUrl)
-            worker execute()
+            assert(signingWorker eq null)
+            signingWorker = new LoginWorker(enterUrl, chatUrl)
+            signingWorker execute()
             true
           }
         }
@@ -87,19 +122,92 @@ class MainActivity extends Activity {
     mi setTitle(if(userEntered) R.string.chat_menu_sign_off
       else R.string.chat_menu_sign_on)
     mi setOnMenuItemClickListener getLoginListener
-    mi setEnabled(worker == null)
+    mi setEnabled null == signingWorker
     super.onCreateOptionsMenu(menu)
   }
 
+  private case class ShoutMessages(seq: IndexedSeq[Map[String, String]])
+
+  private class GuiHandler extends Handler {
+    import collection.JavaConversions.mapAsJavaMap
+
+    override def handleMessage(msg: Message) = {
+      super.handleMessage(msg)
+      msg.obj match {
+        case null => /*assert(false)*/
+        case ShoutMessages(null) => /*assert(false)*/
+        case ShoutMessages(seq) =>
+          seq foreach(message => arrayList add message)
+          listAdapter notifyDataSetChanged()
+      }
+    }
+  }
+
+  private object ChatHandler {
+    case object GetShouts
+    case object UserExit
+  }
+
+  private class ChatHandler(looper: Looper) extends Handler(looper) {
+    import ChatHandler._
+
+    override def handleMessage(msg: Message) = {
+      super.handleMessage(msg)
+      msg.obj match {
+        case GetShouts => {
+          guiHandler sendMessage
+            guiHandler.obtainMessage(1, performGetShouts)
+          workerHandler sendMessageDelayed(
+            workerHandler.obtainMessage(1, GetShouts), 1000)
+        }
+        case UserExit => removeMessages(1, GetShouts)
+      }
+    }
+
+    private def performGetShouts: ShoutMessages = {
+      val url = siteUrl + "?s=" + chatCookies.get("session_id") +
+        "&app=shoutbox&module=ajax&section=coreAjax&secure_key=" +
+        secureHash + "&type=getShouts&lastid=98360"
+      var resp: Connection.Response = null
+
+      try {
+        Log i(TAG, "Request shouts from " + url)
+        resp = Jsoup.connect(url).cookies(chatCookies)
+          .method(Connection.Method.GET).execute()
+
+        Log i(TAG, "Connected to " + url)
+        Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
+
+        val spans = resp parse() getElementsByTag "span" toArray new Array[Element](0)
+        val names = spans filter(!_.getElementsByAttributeValue("itemprop", "name").isEmpty)
+        val timestamps = spans filter(!_.getElementsByAttributeValue("class", "right desc").isEmpty)
+        val messages = spans filter(!_.getElementsByAttributeValue("class", "shoutbox_text").isEmpty)
+
+        assert(names.size == timestamps.size && timestamps.size == messages.size)
+        val shouts = for(i <- 0 until names.size)
+          yield HashMap("name" -> names(i).html,
+            "timestamp" -> timestamps(i).html, "text" -> messages(i).html)
+
+        Log i(TAG, "Obtained " + shouts.size + " new messages")
+        ShoutMessages(shouts)
+
+      } catch { case e: java.io.IOException =>
+        Log e(TAG, "performGetShouts failure, caused: " + e.getMessage)
+        e.printStackTrace()
+        ShoutMessages(null)
+      }
+    }
+  }
+
   // See http://piotrbuda.eu/2012/12/scala-and-android-asynctask-implementation-problem.html
-  private abstract class Worker(private val steps: Int, private val titleId: Int)
+  private abstract class SigningWorker(private val steps: Int, private val titleId: Int)
     extends AsyncTask[AnyRef, AnyRef, AnyRef] {
 
     private val progressDialog = new ProgressDialog(MainActivity.this)
 
     override protected def onPreExecute(): Unit = {
       super.onPreExecute()
-      assert(worker ne null)
+      assert(signingWorker ne null)
       progressDialog setTitle titleId
       progressDialog setMessage ""
       progressDialog setProgressStyle ProgressDialog.STYLE_HORIZONTAL
@@ -110,7 +218,7 @@ class MainActivity extends Activity {
     override protected def onPostExecute(result: AnyRef): Unit = {
       super.onPostExecute(result)
       progressDialog dismiss()
-      worker = null
+      signingWorker = null
     }
 
     override protected final def onProgressUpdate(values: AnyRef*): Unit = {
@@ -127,7 +235,7 @@ class MainActivity extends Activity {
   }
 
   private class LoginWorker(val loginUrl: String, val chatUrl: String)
-    extends Worker(5, R.string.chat_login_progress_title) {
+    extends SigningWorker(5, R.string.chat_login_progress_title) {
 
     private val userName = prefs getString(getString(R.string.key_user_name), "")
     private val userPass = prefs getString(getString(R.string.key_user_pass), "")
@@ -136,6 +244,7 @@ class MainActivity extends Activity {
 
     override protected def doInBackground(params: AnyRef*): LoginResult = {
       var resp: Connection.Response = null
+      var authKey = ""
 
       try {
         publishProgress("Connect to forum...")
@@ -148,7 +257,7 @@ class MainActivity extends Activity {
         Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
 
         val form = resp parse() getElementsByTag "form" forms() get 0
-        val authKey = form getElementsByAttributeValue("name",
+        authKey = form getElementsByAttributeValue("name",
           getString(R.string.key_form_auth)) `val`()
         val action = if (form.hasAttr("action"))
           form.absUrl("action") else form.baseUri()
@@ -170,23 +279,27 @@ class MainActivity extends Activity {
         Log i(TAG, "Connected to " + action)
         Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
 
-      } catch { case e: java.io.IOException =>
-        Log e(TAG, "Login failure, caused: " + e.getMessage)
-        e.printStackTrace()
-        return LoginResult(null, null, null)
+      } catch {
+        case e: java.io.IOException =>
+          Log e(TAG, "Login failure, caused: " + e.getMessage)
+          e.printStackTrace()
+          return LoginResult(null, null, null)
+        case e: ExceptionInInitializerError =>
+          Log.wtf(TAG, "Jsoup initialisation error", e)
+          e.printStackTrace()
+          return LoginResult(null, "", null)
       }
 
       try {
         publishProgress("Parse result...")
         Log i(TAG, "Parse result")
         val doc = resp parse()
-        val res = doc getElementsByTag "p" toArray() find (item => {
-            !item.asInstanceOf[Element].getElementsByAttributeValue("class",
-              getString(R.string.key_form_login_error_class)).isEmpty
-          })
+        val pTags = doc getElementsByTag "p" toArray new Array[Element](0)
+        val res = pTags find (!_.getElementsByAttributeValue("class",
+              getString(R.string.key_form_login_error_class)).isEmpty)
 
         if(res.isDefined) {
-          val msg = res.get.asInstanceOf[Element].text
+          val msg = res.get.text
           Log e(TAG, "Login failure, caused: " + msg)
           return LoginResult("", msg, null)
         }
@@ -195,9 +308,12 @@ class MainActivity extends Activity {
         val link = doc getElementsByAttributeValueStarting("href",
           enterUrl + "&do=logout") get 0 attr "href"
 
+        // Параметр k нужен для составления запросов
+        val secureHash = Uri parse link getQueryParameter "k"
+
         publishProgress("Login success")
         Log i(TAG, "Login successful")
-        LoginResult(authKey, link, resp.cookies)
+        LoginResult(authKey, secureHash, resp.cookies)
 
       } catch { case e: IndexOutOfBoundsException =>
         Log e(TAG, "Login failure, caused: " + e.getMessage)
@@ -217,23 +333,30 @@ class MainActivity extends Activity {
           Toast makeText(MainActivity.this, R.string.chat_error_user,
             Toast.LENGTH_LONG) show()
           false
+        case LoginResult(null, b, null) if b.isEmpty =>
+          Toast makeText(MainActivity.this, "Parser fatal error",
+            Toast.LENGTH_LONG) show()
+          false
         case LoginResult(a, errorString, null) if a.isEmpty =>
           Toast makeText(MainActivity.this, getString(R.string.chat_error_login)
             + "\n" + errorString, Toast.LENGTH_LONG) show()
           false
-        case LoginResult(a, l, c) =>
-          authKey = a; logoutLink = l; chatCookies = c
+        case LoginResult(a, sh, c) =>
+          authKey = a; secureHash = sh; chatCookies = c
           Toast makeText(MainActivity.this, R.string.chat_user_login,
             Toast.LENGTH_LONG) show()
+          if(workerHandler ne null) workerHandler sendMessage
+            workerHandler.obtainMessage(1, ChatHandler.GetShouts)
           true
       }
     }
   }
 
-  private class LogoutWorker(val logoutUrl: String, val cookies: util.Map[String, String])
-    extends Worker(2, R.string.chat_logout_progress_title) {
+  private class LogoutWorker(val secHash: String, val cookies: java.util.Map[String, String])
+    extends SigningWorker(2, R.string.chat_logout_progress_title) {
 
     override protected def doInBackground(params: AnyRef*): AnyRef = {
+      val logoutUrl = enterUrl + "&do=logout&k=" + secHash
 
       try {
         publishProgress("Logout from forum...")
@@ -264,9 +387,12 @@ class MainActivity extends Activity {
             Toast.LENGTH_LONG) show()
           true
         case AnyRef =>
-          authKey = ""; logoutLink = ""; chatCookies = null
+          authKey = ""; secureHash = ""; chatCookies = null
           Toast makeText(MainActivity.this, R.string.chat_user_logout,
             Toast.LENGTH_LONG) show()
+          guiHandler removeMessages(1, ChatHandler.GetShouts)
+          workerHandler sendMessage
+            workerHandler.obtainMessage(1, ChatHandler.UserExit)
           false
       }
     }
@@ -281,10 +407,11 @@ object MainActivity {
   private[chat] val enterUrl = siteUrl + "?app=core&module=global&section=login"
   private[chat] val chatUrl = siteUrl + "/shoutbox/"
 
-  private[MainActivity] case class LoginResult(authKey: String, logoutLink: String, cookies: util.Map[String, String])
+  private[MainActivity] case class LoginResult(authKey: String,
+    secureHash: String, cookies: java.util.Map[String, String])
   private[MainActivity] var authKey = ""
-  private[MainActivity] var logoutLink = ""
-  private[MainActivity] var chatCookies: util.Map[String, String] = null
+  private[MainActivity] var secureHash = ""
+  private[MainActivity] var chatCookies: java.util.Map[String, String] = null
   private[MainActivity] var userEntered = false
 
   private[chat] def isNetworkAvailable: Boolean = {
