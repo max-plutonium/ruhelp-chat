@@ -1,5 +1,7 @@
 *~
 .idea/
+.idea/libraries/
+.idea_modules/
 bin/
 gen/
 project/
