@@ -355,6 +355,12 @@ class MainActivity extends Activity {
   private class LogoutWorker(val secHash: String, val cookies: java.util.Map[String, String])
     extends SigningWorker(2, R.string.chat_logout_progress_title) {
 
+    override protected def onPreExecute(): Unit = {
+      super.onPreExecute()
+      workerHandler sendMessage
+        workerHandler.obtainMessage(1, ChatHandler.UserExit)
+    }
+
     override protected def doInBackground(params: AnyRef*): AnyRef = {
       val logoutUrl = enterUrl + "&do=logout&k=" + secHash
 
@@ -391,8 +397,6 @@ class MainActivity extends Activity {
           Toast makeText(MainActivity.this, R.string.chat_user_logout,
             Toast.LENGTH_LONG) show()
           guiHandler removeMessages(1, ChatHandler.GetShouts)
-          workerHandler sendMessage
-            workerHandler.obtainMessage(1, ChatHandler.UserExit)
           false
       }
     }
