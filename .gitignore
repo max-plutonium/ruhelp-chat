@@ -1,0 +1,8 @@
+*~
+.idea/
+bin/
+gen/
+project/
+target/
+ruhelp_chat.properties
+ruhelp_chat.xml
