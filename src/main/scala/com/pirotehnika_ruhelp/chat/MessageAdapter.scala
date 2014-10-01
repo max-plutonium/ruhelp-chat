@@ -1,6 +1,7 @@
 package com.pirotehnika_ruhelp.chat
 
 import android.content.Context
+import android.text.Html
 import android.view.{LayoutInflater, ViewGroup, View}
 import android.widget.{TextView, BaseAdapter}
 
@@ -25,9 +26,12 @@ protected[chat] class MessageAdapter(private val context: Context,
 
     // Заполняем View данными из Message
     val m = messages(position)
-    view.findViewById(R.id.tvName).asInstanceOf[TextView].setText(m.name)
-    view.findViewById(R.id.tvDate).asInstanceOf[TextView].setText(m.timestamp)
-    view.findViewById(R.id.tvText).asInstanceOf[TextView].setText(m.text)
+    val name = Html.fromHtml(m.name)
+    val timestamp = Html.fromHtml(m.timestamp)
+    val text = Html.fromHtml(m.text)
+    view.findViewById(R.id.tvName).asInstanceOf[TextView].setText(name)
+    view.findViewById(R.id.tvDate).asInstanceOf[TextView].setText(timestamp)
+    view.findViewById(R.id.tvText).asInstanceOf[TextView].setText(text)
     view
   }
 }

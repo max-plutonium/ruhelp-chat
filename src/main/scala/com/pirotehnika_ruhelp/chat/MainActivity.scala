@@ -19,8 +19,11 @@ class MainActivity extends Activity {
   private var workerHandler: Handler = null
   private val workerThread: HandlerThread =
     new HandlerThread("Chat Worker") {
-      override protected def onLooperPrepared() =
+      override protected def onLooperPrepared() = {
         workerHandler = new ChatHandler(getLooper)
+        workerHandler sendMessage
+          workerHandler.obtainMessage(1, ChatHandler.GetShouts(MainActivity.lastMsgId))
+      }
 
       override def start() = super.start()
 
@@ -127,16 +130,20 @@ class MainActivity extends Activity {
     override def handleMessage(msg: android.os.Message) = {
       super.handleMessage(msg)
       msg.obj match {
-        case null => /*assert(false)*/
+        case null =>
+          userEntered = false
         case seq: Seq[Message] =>
           arrayList ++= seq
           listAdapter notifyDataSetChanged()
+          lastMsgId = arrayList.last.id
+          workerHandler sendMessageDelayed(
+            workerHandler.obtainMessage(1, ChatHandler.GetShouts(lastMsgId)), 10000)
       }
     }
   }
 
   private object ChatHandler {
-    case object GetShouts
+    case class GetShouts(lastId: String)
     case object UserExit
   }
 
@@ -146,19 +153,17 @@ class MainActivity extends Activity {
     override def handleMessage(msg: android.os.Message) = {
       super.handleMessage(msg)
       msg.obj match {
-        case GetShouts =>
+        case GetShouts(id) =>
           guiHandler sendMessage
-            guiHandler.obtainMessage(1, performGetShouts)
-          workerHandler sendMessageDelayed(
-            workerHandler.obtainMessage(1, GetShouts), 1000)
+            guiHandler.obtainMessage(1, performGetShouts(id))
         case UserExit => removeMessages(1, GetShouts)
       }
     }
 
-    private def performGetShouts = {
+    private def performGetShouts(lastId: String): Seq[Message] = {
       val url = siteUrl + "?s=" + chatCookies.get("session_id") +
         "&app=shoutbox&module=ajax&section=coreAjax&secure_key=" +
-        secureHash + "&type=getShouts&lastid=98355"
+        secureHash + "&type=getShouts&lastid=" + lastId
       var resp: Connection.Response = null
 
       try {
@@ -169,14 +174,22 @@ class MainActivity extends Activity {
         Log i(TAG, "Connected to " + url)
         Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
 
-        val spans = resp parse() getElementsByTag "span" toArray new Array[Element](0)
+        val doc = resp parse()
+        if(doc.body.toString.contains("nopermission"))
+          return null
+
+        val spans = doc getElementsByTag "span" toArray new Array[Element](0)
+        val script = doc getElementsByAttributeValue("type", "text/javascript") get 0
+
+        // Все числа в скрипте - номера сообщений
+        val ids = "([0-9]+)".r.findAllIn(script.html).toIndexedSeq
         val names = spans filter(!_.getElementsByAttributeValue("itemprop", "name").isEmpty)
         val timestamps = spans filter(!_.getElementsByAttributeValue("class", "right desc").isEmpty)
         val messages = spans filter(!_.getElementsByAttributeValue("class", "shoutbox_text").isEmpty)
 
-        assert(names.size == timestamps.size && timestamps.size == messages.size)
+        assert((ids.size == names.size) && (names.size == timestamps.size) && (timestamps.size == messages.size))
         val shouts = for(i <- 0 until names.size)
-          yield Message(names(i).html, timestamps(i).html, messages(i).html)
+          yield Message(ids(i), names(i).html, timestamps(i).html, messages(i).html)
 
         Log i(TAG, "Obtained " + shouts.size + " new messages")
         shouts
@@ -336,7 +349,7 @@ class MainActivity extends Activity {
           Toast makeText(MainActivity.this, R.string.chat_user_login,
             Toast.LENGTH_LONG) show()
           if(workerHandler ne null) workerHandler sendMessage
-            workerHandler.obtainMessage(1, ChatHandler.GetShouts)
+            workerHandler.obtainMessage(1, ChatHandler.GetShouts(lastMsgId))
           true
       }
     }
@@ -407,6 +420,7 @@ object MainActivity {
   private[MainActivity] var secureHash = ""
   private[MainActivity] var chatCookies: java.util.Map[String, String] = null
   private[MainActivity] var userEntered = false
+  var lastMsgId = "98396"
 
   private[chat] def isNetworkAvailable: Boolean = {
     val cm = self.getSystemService(Context.CONNECTIVITY_SERVICE).asInstanceOf[ConnectivityManager]
