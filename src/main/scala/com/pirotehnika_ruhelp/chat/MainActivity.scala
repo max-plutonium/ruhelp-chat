@@ -1,7 +1,5 @@
 package com.pirotehnika_ruhelp.chat
 
-import collection.immutable.{HashMap, Map}
-
 import android.app.{ProgressDialog, AlertDialog, Activity}
 import android.content.{DialogInterface, Context, Intent}
 import android.net.{Uri, ConnectivityManager}
@@ -37,9 +35,8 @@ class MainActivity extends Activity {
   import MainActivity._
   private lazy val prefs = PreferenceManager getDefaultSharedPreferences this
   private lazy val lstChat = findViewById(R.id.lstChat).asInstanceOf[ListView]
-  private val arrayList = new java.util.ArrayList[java.util.Map[String, String]]
-  private lazy val listAdapter = new SimpleAdapter(this, arrayList, R.layout.chatlist_item,
-    Array("name", "timestamp", "text"), Array(R.id.tvName, R.id.tvDate, R.id.tvText))
+  private val arrayList = collection.mutable.ArrayBuffer[Message]()
+  private lazy val listAdapter = MessageAdapter(this, arrayList)
 
   override protected def onCreate(savedInstanceState: Bundle) = {
     super.onCreate(savedInstanceState)
@@ -126,18 +123,13 @@ class MainActivity extends Activity {
     super.onCreateOptionsMenu(menu)
   }
 
-  private case class ShoutMessages(seq: IndexedSeq[Map[String, String]])
-
   private class GuiHandler extends Handler {
-    import collection.JavaConversions.mapAsJavaMap
-
-    override def handleMessage(msg: Message) = {
+    override def handleMessage(msg: android.os.Message) = {
       super.handleMessage(msg)
       msg.obj match {
         case null => /*assert(false)*/
-        case ShoutMessages(null) => /*assert(false)*/
-        case ShoutMessages(seq) =>
-          seq foreach(message => arrayList add message)
+        case seq: Seq[Message] =>
+          arrayList ++= seq
           listAdapter notifyDataSetChanged()
       }
     }
@@ -151,23 +143,22 @@ class MainActivity extends Activity {
   private class ChatHandler(looper: Looper) extends Handler(looper) {
     import ChatHandler._
 
-    override def handleMessage(msg: Message) = {
+    override def handleMessage(msg: android.os.Message) = {
       super.handleMessage(msg)
       msg.obj match {
-        case GetShouts => {
+        case GetShouts =>
           guiHandler sendMessage
             guiHandler.obtainMessage(1, performGetShouts)
           workerHandler sendMessageDelayed(
             workerHandler.obtainMessage(1, GetShouts), 1000)
-        }
         case UserExit => removeMessages(1, GetShouts)
       }
     }
 
-    private def performGetShouts: ShoutMessages = {
+    private def performGetShouts = {
       val url = siteUrl + "?s=" + chatCookies.get("session_id") +
         "&app=shoutbox&module=ajax&section=coreAjax&secure_key=" +
-        secureHash + "&type=getShouts&lastid=98360"
+        secureHash + "&type=getShouts&lastid=98355"
       var resp: Connection.Response = null
 
       try {
@@ -185,16 +176,15 @@ class MainActivity extends Activity {
 
         assert(names.size == timestamps.size && timestamps.size == messages.size)
         val shouts = for(i <- 0 until names.size)
-          yield HashMap("name" -> names(i).html,
-            "timestamp" -> timestamps(i).html, "text" -> messages(i).html)
+          yield Message(names(i).html, timestamps(i).html, messages(i).html)
 
         Log i(TAG, "Obtained " + shouts.size + " new messages")
-        ShoutMessages(shouts)
+        shouts
 
       } catch { case e: java.io.IOException =>
         Log e(TAG, "performGetShouts failure, caused: " + e.getMessage)
         e.printStackTrace()
-        ShoutMessages(null)
+        null
       }
     }
   }
