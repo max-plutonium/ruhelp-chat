@@ -7,6 +7,7 @@
     <string name="key_form_anon">anonymous</string>
     <string name="key_form_referrer">referer</string>
     <string name="key_form_login_error_class">message error</string>
+    <string name="key_body_no_permission">nopermission</string>
 
     <string name="key_user_name">enterName</string>
     <string name="key_user_pass">enterPass</string>

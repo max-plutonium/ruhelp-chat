@@ -129,12 +129,15 @@ class MainActivity extends Activity {
       message.obj match {
         case null =>
         case NoPermMessage =>
+          Toast makeText(MainActivity.this, R.string.chat_error_no_permission,
+            Toast.LENGTH_LONG) show()
+          userEntered = false
         case Messages(seq) =>
           arrayList ++= seq
           listAdapter notifyDataSetChanged()
           lastMsgId = arrayList.last.id
       }
-      workerHandler sendMessageDelayed(
+      if(userEntered) workerHandler sendMessageDelayed(
         workerHandler.obtainMessage(1, ChatHandler.GetShouts(lastMsgId)), 10000)
     }
   }
@@ -158,12 +161,9 @@ class MainActivity extends Activity {
               guiHandler sendMessage guiHandler.obtainMessage(1, null)
             }
 
-          } catch {
-            case e: java.net.SocketTimeoutException =>
-              Log e(TAG, "ChatHandler requestShouts timeout")
-              sendMessageDelayed(obtainMessage(1, GetShouts(id)), 10000)
-            case e: IndexOutOfBoundsException =>
-              sendMessageDelayed(obtainMessage(1, GetShouts(id)), 10000)
+          } catch { case e: java.net.SocketTimeoutException =>
+              Log w(TAG, "Timeout on request new messages")
+              sendMessageDelayed(obtainMessage(1, GetShouts(id)), 3300)
           }
         case UserExit => removeMessages(1, GetShouts)
       }
@@ -173,19 +173,21 @@ class MainActivity extends Activity {
       val url = siteUrl + "?s=" + chatCookies.get("session_id") +
         "&app=shoutbox&module=ajax&section=coreAjax&secure_key=" +
         secureHash + "&type=getShouts" + (if(lastId.isEmpty) "" else "&lastid=" + lastId)
-      Log i(TAG, "Request shouts from " + url)
+      Log i(TAG, "Request for new messages on " + url)
       val resp = Jsoup.connect(url).cookies(chatCookies)
         .method(Connection.Method.GET).execute()
 
       Log i(TAG, "Connected to " + url)
       Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
 
-      val doc = resp parse()
-      val body = doc.body.html
-      if("nopermission".equals(body))
+      val doc = resp parse(); val body = doc.body.html
+      if(body equals getString(R.string.key_body_no_permission)) {
+        Log e(TAG, "Obtained no-permission error")
         return Some(NoPermMessage)
-      else if(body.isEmpty)
+      } else if(body.isEmpty) {
+        Log i(TAG, "There are no new messages on server")
         return None
+      }
 
       val spans = doc getElementsByTag "span" toArray new Array[Element](0)
       val script = doc getElementsByAttributeValue("type", "text/javascript") get 0
@@ -196,7 +198,6 @@ class MainActivity extends Activity {
       val timestamps = spans filter (!_.getElementsByAttributeValue("class", "right desc").isEmpty)
       val messages = spans filter (!_.getElementsByAttributeValue("class", "shoutbox_text").isEmpty)
 
-      Log i(TAG, "Obtained " + ids.size + " new messages")
       assert((ids.size == names.size) && (names.size == timestamps.size) && (timestamps.size == messages.size))
       val shouts = for (i <- 0 until names.size)
       yield Message(ids(i), names(i).html, timestamps(i).html, messages(i).html)
@@ -311,7 +312,7 @@ class MainActivity extends Activity {
           return LoginResult("", msg, null)
         }
 
-        // Поиск и сохранение ссылки для выхода
+        // Поиск ссылки для выхода
         val link = doc getElementsByAttributeValueStarting("href",
           enterUrl + "&do=logout") get 0 attr "href"
 
