@@ -1,8 +1,6 @@
-android.Plugin.androidBuild
 
-scalaVersion := "2.10.4"
+android.Plugin.androidBuild
 
 name := "ruhelp_chat"
 
 version := "0.1"
-

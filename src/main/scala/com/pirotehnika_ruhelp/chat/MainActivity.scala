@@ -19,11 +19,8 @@ class MainActivity extends Activity {
   private var workerHandler: Handler = null
   private val workerThread: HandlerThread =
     new HandlerThread("Chat Worker") {
-      override protected def onLooperPrepared() = {
+      override protected def onLooperPrepared() =
         workerHandler = new ChatHandler(getLooper)
-        workerHandler sendMessage
-          workerHandler.obtainMessage(1, ChatHandler.GetShouts(MainActivity.lastMsgId))
-      }
 
       override def start() = super.start()
 
@@ -46,7 +43,6 @@ class MainActivity extends Activity {
     setContentView(R.layout.main)
     self = this
     lstChat setAdapter listAdapter
-    lstChat requestFocusFromTouch()
   }
 
   override protected def onResume() = {
@@ -59,8 +55,6 @@ class MainActivity extends Activity {
 
   override protected def onPause() = {
     super.onPause()
-//    workerThread quit()
-//    guiHandler removeMessages() TODO
   }
 
   override def onCreateOptionsMenu(menu: Menu) = {
@@ -126,19 +120,22 @@ class MainActivity extends Activity {
     super.onCreateOptionsMenu(menu)
   }
 
+  case class Messages(seq: Seq[Message])
+  private val NoPermMessage = new Messages(Seq(Message("", "", "", "")))
+
   private class GuiHandler extends Handler {
-    override def handleMessage(msg: android.os.Message) = {
-      super.handleMessage(msg)
-      msg.obj match {
+    override def handleMessage(message: android.os.Message) = {
+      super.handleMessage(message)
+      message.obj match {
         case null =>
-          userEntered = false
-        case seq: Seq[Message] =>
+        case NoPermMessage =>
+        case Messages(seq) =>
           arrayList ++= seq
           listAdapter notifyDataSetChanged()
           lastMsgId = arrayList.last.id
-          workerHandler sendMessageDelayed(
-            workerHandler.obtainMessage(1, ChatHandler.GetShouts(lastMsgId)), 10000)
       }
+      workerHandler sendMessageDelayed(
+        workerHandler.obtainMessage(1, ChatHandler.GetShouts(lastMsgId)), 10000)
     }
   }
 
@@ -150,55 +147,62 @@ class MainActivity extends Activity {
   private class ChatHandler(looper: Looper) extends Handler(looper) {
     import ChatHandler._
 
-    override def handleMessage(msg: android.os.Message) = {
-      super.handleMessage(msg)
-      msg.obj match {
+    override def handleMessage(message: android.os.Message) = {
+      super.handleMessage(message)
+      message.obj match {
         case GetShouts(id) =>
-          guiHandler sendMessage
-            guiHandler.obtainMessage(1, performGetShouts(id))
+          try {
+            requestNewShouts(id) match { case Some(msg) =>
+              guiHandler sendMessage guiHandler.obtainMessage(1, msg)
+            case None =>
+              guiHandler sendMessage guiHandler.obtainMessage(1, null)
+            }
+
+          } catch {
+            case e: java.net.SocketTimeoutException =>
+              Log e(TAG, "ChatHandler requestShouts timeout")
+              sendMessageDelayed(obtainMessage(1, GetShouts(id)), 10000)
+            case e: IndexOutOfBoundsException =>
+              sendMessageDelayed(obtainMessage(1, GetShouts(id)), 10000)
+          }
         case UserExit => removeMessages(1, GetShouts)
       }
     }
 
-    private def performGetShouts(lastId: String): Seq[Message] = {
+    private def requestNewShouts(lastId: String): Option[Messages] = {
       val url = siteUrl + "?s=" + chatCookies.get("session_id") +
         "&app=shoutbox&module=ajax&section=coreAjax&secure_key=" +
-        secureHash + "&type=getShouts&lastid=" + lastId
-      var resp: Connection.Response = null
+        secureHash + "&type=getShouts" + (if(lastId.isEmpty) "" else "&lastid=" + lastId)
+      Log i(TAG, "Request shouts from " + url)
+      val resp = Jsoup.connect(url).cookies(chatCookies)
+        .method(Connection.Method.GET).execute()
 
-      try {
-        Log i(TAG, "Request shouts from " + url)
-        resp = Jsoup.connect(url).cookies(chatCookies)
-          .method(Connection.Method.GET).execute()
+      Log i(TAG, "Connected to " + url)
+      Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
 
-        Log i(TAG, "Connected to " + url)
-        Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
+      val doc = resp parse()
+      val body = doc.body.html
+      if("nopermission".equals(body))
+        return Some(NoPermMessage)
+      else if(body.isEmpty)
+        return None
 
-        val doc = resp parse()
-        if(doc.body.toString.contains("nopermission"))
-          return null
+      val spans = doc getElementsByTag "span" toArray new Array[Element](0)
+      val script = doc getElementsByAttributeValue("type", "text/javascript") get 0
 
-        val spans = doc getElementsByTag "span" toArray new Array[Element](0)
-        val script = doc getElementsByAttributeValue("type", "text/javascript") get 0
+      // Все числа в скрипте - номера сообщений
+      val ids = "([0-9]+)".r.findAllIn(script.html).toIndexedSeq
+      val names = spans filter (!_.getElementsByAttributeValue("itemprop", "name").isEmpty)
+      val timestamps = spans filter (!_.getElementsByAttributeValue("class", "right desc").isEmpty)
+      val messages = spans filter (!_.getElementsByAttributeValue("class", "shoutbox_text").isEmpty)
 
-        // Все числа в скрипте - номера сообщений
-        val ids = "([0-9]+)".r.findAllIn(script.html).toIndexedSeq
-        val names = spans filter(!_.getElementsByAttributeValue("itemprop", "name").isEmpty)
-        val timestamps = spans filter(!_.getElementsByAttributeValue("class", "right desc").isEmpty)
-        val messages = spans filter(!_.getElementsByAttributeValue("class", "shoutbox_text").isEmpty)
+      Log i(TAG, "Obtained " + ids.size + " new messages")
+      assert((ids.size == names.size) && (names.size == timestamps.size) && (timestamps.size == messages.size))
+      val shouts = for (i <- 0 until names.size)
+      yield Message(ids(i), names(i).html, timestamps(i).html, messages(i).html)
 
-        assert((ids.size == names.size) && (names.size == timestamps.size) && (timestamps.size == messages.size))
-        val shouts = for(i <- 0 until names.size)
-          yield Message(ids(i), names(i).html, timestamps(i).html, messages(i).html)
-
-        Log i(TAG, "Obtained " + shouts.size + " new messages")
-        shouts
-
-      } catch { case e: java.io.IOException =>
-        Log e(TAG, "performGetShouts failure, caused: " + e.getMessage)
-        e.printStackTrace()
-        null
-      }
+      Log i(TAG, "Obtained " + ids.size + " new messages")
+      Some(Messages(shouts))
     }
   }
 
@@ -420,7 +424,7 @@ object MainActivity {
   private[MainActivity] var secureHash = ""
   private[MainActivity] var chatCookies: java.util.Map[String, String] = null
   private[MainActivity] var userEntered = false
-  var lastMsgId = "98396"
+  var lastMsgId = ""
 
   private[chat] def isNetworkAvailable: Boolean = {
     val cm = self.getSystemService(Context.CONNECTIVITY_SERVICE).asInstanceOf[ConnectivityManager]
