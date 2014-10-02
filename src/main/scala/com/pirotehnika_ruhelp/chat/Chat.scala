@@ -61,11 +61,12 @@ protected[chat] class Chat(private val activity: Activity) {
     private val arrayList = collection.mutable.ArrayBuffer[Message]()
     private lazy val listAdapter = MessageAdapter(context, arrayList)
     private lazy val lstChat = activity.findViewById(R.id.lstChat).asInstanceOf[ListView]
-    private lazy val progressDialog = new ProgressDialog(context)
+    private var progressDialog: ProgressDialog = null
 
     def sendMessage(msg: GuiMessage) = super.sendMessage(obtainMessage(1, msg))
 
     protected def startProgress(titleId: Int, steps: Int) = {
+      progressDialog = new ProgressDialog(context)
       progressDialog setTitle titleId
       progressDialog setMessage ""
       progressDialog setProgressStyle ProgressDialog.STYLE_HORIZONTAL
@@ -79,7 +80,10 @@ protected[chat] class Chat(private val activity: Activity) {
       progressDialog setMessage message
     }
 
-    protected def stopProgress() = progressDialog dismiss()
+    protected def stopProgress() = {
+      progressDialog dismiss()
+      progressDialog = null
+    }
 
     override def handleMessage(message: android.os.Message) = {
       super.handleMessage(message)
@@ -99,9 +103,10 @@ protected[chat] class Chat(private val activity: Activity) {
         case result: LoginResult => stopProgress()
           onLoginResult(result); loginOrLogout = false
         case Logout =>
+          startProgress(R.string.chat_logout_progress_title, 2)
           workerHandler sendMessage NetworkHandler.Logout
           loginOrLogout = true
-        case LogoutResult(result) =>
+        case LogoutResult(result) => stopProgress()
           onLogoutResult(result); loginOrLogout = false
 
         case NoPermMessage =>
