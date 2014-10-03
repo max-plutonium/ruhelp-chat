@@ -14,20 +14,9 @@ class MainActivity extends Activity {
   override protected def onCreate(savedInstanceState: Bundle) = {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.main)
-    chat start()
     self = this
+    chat start()
   }
-
-//  override protected def onSaveInstanceState(outState: Bundle) = {
-//    super.onSaveInstanceState(outState)
-//    outState putString("qwer", "123")
-//  }
-//
-//  override protected def onRestoreInstanceState(savedInstanceState: Bundle) = {
-//    super.onRestoreInstanceState(savedInstanceState)
-//    val res = savedInstanceState getString("qwer")
-//    val res2 = res.substring(1)
-//  }
 
   override def onCreateOptionsMenu(menu: Menu) = {
     getMenuInflater inflate(R.menu.main, menu)
