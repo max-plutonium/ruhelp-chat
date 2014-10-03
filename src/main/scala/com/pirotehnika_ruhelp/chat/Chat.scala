@@ -34,17 +34,35 @@ protected[chat] class Chat(private val activity: Activity) {
     else workerHandler.checkForNewMessages ne null
   final def isLoginOrLogout = guiHandler.loginOrLogout
 
-  private def getMsgInterval = {
+  private final def getMsgInterval = {
     val interval = prefs.getString(getString(R.string.key_network_refresh_interval), "10")
     Integer.parseInt(interval) * 1000
   }
 
-  private def getTimeout = {
+  private final def getTimeout = {
     val timeout = prefs.getString(getString(R.string.key_network_timeout), "5")
     Integer.parseInt(timeout) * 1000
   }
 
-  private def getString(resId: Int) = activity getString resId
+  private[chat] final def getUserAgent = {
+    val info = activity.getPackageManager.getPackageInfo(activity.getPackageName, 0)
+    val userAgent = getString(R.string.key_useragent)
+    val verCode = info.versionCode
+    val verName = info.versionName
+    val sdkCode = android.os.Build.VERSION.SDK_INT
+    val sdkName = android.os.Build.VERSION.RELEASE
+    val man = android.os.Build.MANUFACTURER
+    val model = android.os.Build.MODEL
+    val abi = android.os.Build.CPU_ABI
+    val serial = android.os.Build.SERIAL
+    val bootLoader = android.os.Build.BOOTLOADER
+    val radio = android.os.Build.getRadioVersion
+    val fp = android.os.Build.FINGERPRINT
+    s"$userAgent v$verName (Linux; U; Android $sdkName/$sdkCode; " +
+      s"ru-Ru; $model; $abi; $bootLoader; $radio) Mobile/$man Version/$verCode $serial/$fp"
+  }
+
+  private final def getString(resId: Int) = activity getString resId
 
   final def isNetworkAvailable: Boolean = {
     val cm = activity.getSystemService(Context.CONNECTIVITY_SERVICE).asInstanceOf[ConnectivityManager]
@@ -179,7 +197,7 @@ protected[chat] class Chat(private val activity: Activity) {
           publishProgress("Connect to forum...")
           Log i(TAG, "Request for login info from " + url)
           resp = Jsoup.connect(url).timeout(timeout)
-            .method(Connection.Method.GET).execute()
+            .userAgent(getUserAgent).method(Connection.Method.GET).execute()
 
           publishProgress("Connected. Parse login form...")
           Log i(TAG, "Connected to " + url)
@@ -218,8 +236,7 @@ protected[chat] class Chat(private val activity: Activity) {
           // Ищем на странице элемент <p class="message error" ...
           // Если находим, значит форум прислал нам описание ошибки
           doc.getElementsByTag("p").toArray(new Array[Element](1)).
-            find { !_.getElementsByAttributeValue(
-              "class", getString(R.string.key_form_login_error_class)).isEmpty
+            filter { _.attr("class").equals(getString(R.string.key_form_login_error_class))
             } foreach { res => val msg = res.text
               Log w(TAG, "Login failure, caused: " + msg)
               authKey = ""; chatCookies = null
@@ -277,7 +294,7 @@ protected[chat] class Chat(private val activity: Activity) {
           publishProgress("Logout from forum...")
           Log i(TAG, "Logout from " + url)
 
-          val resp = Jsoup.connect(url).cookies(chatCookies)
+          val resp = Jsoup.connect(url).cookies(chatCookies).userAgent(getUserAgent)
             .method(Connection.Method.GET).timeout(timeout).execute()
 
           Log i(TAG, "Connected to " + url)

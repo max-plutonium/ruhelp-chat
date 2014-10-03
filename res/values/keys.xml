@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="key_system_user">*** SYSTEM ***</string>
+    <string name="key_useragent">Pirotehnika-ruhelp/Pirochat</string>
 
     <string name="key_form_auth">auth_key</string>
     <string name="key_form_name">ips_username</string>
