@@ -18,7 +18,7 @@
 
     <string name="chat_error_login">Ошибка регистрации:</string>
     <string name="chat_error_network_timeout">Таймаут подключения к серверу</string>
-    <string name="chat_error_network">Ошибка сети :</string>
+    <string name="chat_error_network">Ошибка сети</string>
     <string name="chat_error_user">Неверные имя/пароль</string>
     <string name="chat_error_no_permission">Нет доступа к чату для вашего логина.
         Нужно заново зайти на форум.</string>

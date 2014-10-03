@@ -248,7 +248,8 @@ protected[chat] class Chat(private val activity: Activity) {
               errorStringId = R.string.chat_error_network_timeout)
 
           case e: java.io.IOException =>
-            Log e(TAG, "Login failure, caused: " + e.getMessage)
+            Log e(TAG, "Login failure, caused: \""
+              + e.getMessage + "\" by: " + e.getCause.getMessage)
             e printStackTrace()
             authKey = ""
             LoginResult(success = false,
@@ -304,9 +305,16 @@ protected[chat] class Chat(private val activity: Activity) {
           doRequest(getTimeout) foreach { messages =>
             guiHandler sendMessage messages }
 
-        } catch { case e: java.net.SocketTimeoutException =>
-          Log w(TAG, "Timeout on request new messages")
-          interval = 1000
+        } catch {
+          case e: java.net.SocketTimeoutException =>
+            Log w(TAG, "Timeout on request new messages")
+            interval = 1000
+
+          case e: java.io.IOException =>
+            Log e(TAG, "Check for new messages failure, caused: \""
+              + e.getMessage + "\" by: " + e.getCause.getMessage)
+            e printStackTrace()
+            exitUser()
 
         } finally if(this eq checkForNewMessages) {
           workerHandler postDelayed(this, interval)
