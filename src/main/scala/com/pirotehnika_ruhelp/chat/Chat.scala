@@ -12,9 +12,9 @@ import org.jsoup.{Connection, Jsoup}
 
 protected[chat] class Chat(private val activity: Activity) {
 
-  private lazy val prefs = PreferenceManager getDefaultSharedPreferences activity
   private var userEntered = false
-  private var loginOrLogout = false
+
+  private lazy val prefs = PreferenceManager getDefaultSharedPreferences activity
   private val guiHandler: GuiHandler = new GuiHandler(activity)
   private var workerHandler: NetworkHandler = null
   private val workerThread: HandlerThread =
@@ -27,11 +27,24 @@ protected[chat] class Chat(private val activity: Activity) {
 
   import Chat._
 
-  final def start() = guiHandler sendMessage GuiHandler.StartChat
-  final def login() = guiHandler sendMessage GuiHandler.Login
-  final def logout() = guiHandler sendMessage GuiHandler.Logout
-  final def isUserEntered = userEntered
-  final def isLoginOrLogout = loginOrLogout
+  final def start() = guiHandler sendMessage StartChat
+  final def login() = guiHandler sendMessage Login
+  final def logout() = guiHandler sendMessage Logout
+  final def isUserEntered = if(workerHandler eq null) false
+    else workerHandler.checkForNewMessages ne null
+  final def isLoginOrLogout = guiHandler.loginOrLogout
+
+  private def getMsgInterval = {
+    val interval = prefs.getString(getString(R.string.key_network_refresh_interval), "10")
+    Integer.parseInt(interval) * 1000
+  }
+
+  private def getTimeout = {
+    val timeout = prefs.getString(getString(R.string.key_network_timeout), "5")
+    Integer.parseInt(timeout) * 1000
+  }
+
+  private def getString(resId: Int) = activity getString resId
 
   final def isNetworkAvailable: Boolean = {
     val cm = activity.getSystemService(Context.CONNECTIVITY_SERVICE).asInstanceOf[ConnectivityManager]
@@ -43,25 +56,22 @@ protected[chat] class Chat(private val activity: Activity) {
       true } else false)
   }
 
-  private object GuiHandler {
-    sealed trait GuiMessage
-    case object StartChat extends GuiMessage
-    case object Login extends GuiMessage
-    case class UpdateProgress(message: String) extends GuiMessage
-    case class LoginResult(authKey: String, secureHash: String,
-      cookies: java.util.Map[String, String]) extends GuiMessage
-    case object Logout extends GuiMessage
-    case class LogoutResult(result: Boolean) extends GuiMessage
-    case class Messages(seq: Seq[Message]) extends GuiMessage
-    val NoPermMessage = new Messages(Seq(Message("", "", "", "")))
-  }
+  private sealed trait GuiMessage
+  private case object StartChat extends GuiMessage
+  private case object Login extends GuiMessage
+  private case class UpdateProgress(message: String) extends GuiMessage
+  private case class LoginResult(success: Boolean,
+    errorStringId: Int = -1, errorMsg: String = "") extends GuiMessage
+  private case object Logout extends GuiMessage
+  private case class LogoutResult(result: Boolean) extends GuiMessage
+  private case class Messages(seq: Seq[Message]) extends GuiMessage
 
   private class GuiHandler(private val context: Context) extends Handler {
-    import GuiHandler._
     private val arrayList = collection.mutable.ArrayBuffer[Message]()
     private lazy val listAdapter = MessageAdapter(context, arrayList)
     private lazy val lstChat = activity.findViewById(R.id.lstChat).asInstanceOf[ListView]
     private var progressDialog: ProgressDialog = null
+    private[Chat] var loginOrLogout = false
 
     def sendMessage(msg: GuiMessage) = super.sendMessage(obtainMessage(1, msg))
 
@@ -85,270 +95,267 @@ protected[chat] class Chat(private val activity: Activity) {
       progressDialog = null
     }
 
-    override def handleMessage(message: android.os.Message) = {
+    override def handleMessage(message: android.os.Message): Unit = {
       super.handleMessage(message)
       message.obj match {
-        case null =>
-        case StartChat => lstChat setAdapter listAdapter
+        case StartChat =>
+          lstChat setAdapter listAdapter
+
         case Login =>
           startProgress(R.string.chat_login_progress_title, 5)
-          val userName = prefs getString(activity getString R.string.key_user_name, "")
-          val userPass = prefs getString(activity getString R.string.key_user_pass, "")
-          val userRemember = prefs getBoolean(activity getString R.string.key_user_remember, false)
-          val userAnon = prefs getBoolean(activity getString R.string.key_user_anon, false)
-          workerHandler sendMessage NetworkHandler.Login(userName, userPass, userRemember, userAnon)
+          workerHandler post workerHandler.performLogin
           loginOrLogout = true
+        case UpdateProgress(msg) =>
+          updateProgress(msg)
+        case result: LoginResult =>
+          stopProgress()
+          onLoginResult(result)
+          loginOrLogout = false
 
-        case UpdateProgress(msg) => updateProgress(msg)
-        case result: LoginResult => stopProgress()
-          onLoginResult(result); loginOrLogout = false
         case Logout =>
           startProgress(R.string.chat_logout_progress_title, 2)
-          workerHandler sendMessage NetworkHandler.Logout
+          workerHandler post workerHandler.performLogout
           loginOrLogout = true
-        case LogoutResult(result) => stopProgress()
-          onLogoutResult(result); loginOrLogout = false
-
-        case NoPermMessage =>
-          Toast makeText(activity, R.string.chat_error_no_permission,
-            Toast.LENGTH_LONG) show()
-          userEntered = false
+        case LogoutResult(result) =>
+          stopProgress()
+          Toast makeText(context, if(result) R.string.chat_user_logout
+            else R.string.chat_error_network, Toast.LENGTH_LONG) show()
+          loginOrLogout = false
 
         case Messages(seq) =>
           arrayList ++= seq
           listAdapter notifyDataSetChanged()
           lstChat smoothScrollToPosition listAdapter.getCount
       }
-      if(userEntered)
-        workerHandler sendMessageDelayed(NetworkHandler.GetShouts, 10000)
     }
 
     private def onLoginResult(result: LoginResult) = {
-      userEntered = result.asInstanceOf[LoginResult] match {
-        case LoginResult(null, null, null) =>
-          Toast makeText(activity, R.string.chat_error_network,
+      result match {
+        case LoginResult(false, errorStringId, "") if -1 != errorStringId =>
+          Toast makeText(context, errorStringId, Toast.LENGTH_LONG) show()
+        case LoginResult(false, errorStringId, msg) if -1 != errorStringId =>
+          Toast makeText(context, getString(errorStringId)
+            + "\n" + msg, Toast.LENGTH_LONG) show()
+        case LoginResult(true, _, _) =>
+          Toast makeText(context, R.string.chat_user_login,
             Toast.LENGTH_LONG) show()
-          false
-        case LoginResult(a, null, null) if a.isEmpty =>
-          Toast makeText(activity, R.string.chat_error_user,
-            Toast.LENGTH_LONG) show()
-          false
-        case LoginResult(null, b, null) if b.isEmpty =>
-          Toast makeText(activity, "Parser fatal error",
-            Toast.LENGTH_LONG) show()
-          false
-        case LoginResult(a, errorString, null) if a.isEmpty =>
-          Toast makeText(activity, activity.getString(R.string.chat_error_login)
-            + "\n" + errorString, Toast.LENGTH_LONG) show()
-          false
-        case LoginResult(_, _, _) =>
-          Toast makeText(activity, R.string.chat_user_login,
-            Toast.LENGTH_LONG) show()
-          true
       }
     }
-
-    private def onLogoutResult(result: Boolean) = {
-      userEntered = result match {
-        case false =>
-          Toast makeText(activity, R.string.chat_error_network,
-            Toast.LENGTH_LONG) show()
-          true
-        case true =>
-          Toast makeText(activity, R.string.chat_user_logout,
-            Toast.LENGTH_LONG) show()
-          false
-      }
-    }
-  }
-
-  private object NetworkHandler {
-    sealed trait NetworkMessage
-    case class Login(name: String, pass: String,
-      remember: Boolean, anon: Boolean) extends NetworkMessage
-    case object Logout extends NetworkMessage
-    case object GetShouts extends NetworkMessage
   }
 
   private class NetworkHandler(looper: Looper) extends Handler(looper) {
-    import NetworkHandler._
     private var authKey = ""
     private var secureHash = ""
     private var chatCookies: java.util.Map[String, String] = null
     private var lastMsgId = ""
 
-    def sendMessage(msg: NetworkMessage) = super.sendMessage(obtainMessage(1, msg))
+    private final def enterUser() = {
+      assert(checkForNewMessages eq null)
+      checkForNewMessages = new CheckForNewMessages
+      workerHandler post checkForNewMessages
+    }
 
-    def sendMessageDelayed(msg: NetworkMessage, delay: Long) =
-      super.sendMessageDelayed(obtainMessage(1, msg), delay)
+    private final def exitUser() = {
+      removeCallbacks(checkForNewMessages)
+      authKey = ""; secureHash = ""; chatCookies = null
+      checkForNewMessages = null
+    }
 
-    protected def publishProgress(msg: String) =
-      guiHandler sendMessage new GuiHandler.UpdateProgress(msg)
+    private final def publishProgress(msg: String) =
+      guiHandler sendMessage new UpdateProgress(msg)
 
-    override def handleMessage(message: android.os.Message) = {
-      super.handleMessage(message)
-      message.obj match {
-        case Login(name, pass, remember, anon) =>
-          guiHandler sendMessage performLogin(name, pass, remember, anon)
-        case Logout =>
-          guiHandler sendMessage performLogout()
-          removeMessages(1, GetShouts)
+    val performLogin = new Runnable {
+      override def run(): Unit =
+        guiHandler sendMessage doLogin(enterUrl, getTimeout)
 
-        case GetShouts =>
-          try {
-            requestNewShouts() match {
-              case Some(msg) => guiHandler sendMessage msg
-              case None => guiHandler sendMessage null
+      private def doLogin(url: String, timeout: Int): GuiMessage = {
+        val name = prefs getString(getString(R.string.key_user_name), "")
+        val pass = prefs getString(getString(R.string.key_user_pass), "")
+        val remember = prefs getBoolean(getString(R.string.key_user_remember), false)
+        val anon = prefs getBoolean(getString(R.string.key_user_anon), false)
+        var resp: Connection.Response = null
+
+        try {
+          publishProgress("Connect to forum...")
+          Log i(TAG, "Request for login info from " + url)
+          resp = Jsoup.connect(url).timeout(timeout)
+            .method(Connection.Method.GET).execute()
+
+          publishProgress("Connected. Parse login form...")
+          Log i(TAG, "Connected to " + url)
+          Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
+
+          val form = resp parse() getElementsByTag "form" forms() get 0
+          assert(authKey isEmpty)
+          authKey = form getElementsByAttributeValue(
+            "name", getString(R.string.key_form_auth)) `val`()
+          val action = if (form.hasAttr("action"))
+            form.absUrl("action") else form.baseUri()
+          val method = if (form.attr("method").toUpperCase.equals("POST"))
+            Connection.Method.POST else Connection.Method.GET
+
+          publishProgress("Send login info to forum...")
+          Log i(TAG, "Send login info to " + action)
+
+          resp = Jsoup.connect(action)
+            .data(getString(R.string.key_form_auth), authKey)
+            .data(getString(R.string.key_form_referrer), chatUrl)
+            .data(getString(R.string.key_form_name), name)
+            .data(getString(R.string.key_form_pass), pass)
+            .data(getString(R.string.key_form_remember), if (remember) "1" else "0")
+            .data(getString(R.string.key_form_anon), if (anon) "1" else "0")
+            .method(method).timeout(timeout).execute()
+
+          Log i(TAG, "Connected to " + action)
+          Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
+          assert(chatCookies eq null)
+          chatCookies = resp.cookies
+
+          publishProgress("Parse result...")
+          Log i(TAG, "Parse result")
+          val doc = resp parse()
+
+          // Ищем на странице элемент <p class="message error" ...
+          // Если находим, значит форум прислал нам описание ошибки
+          doc.getElementsByTag("p").toArray(new Array[Element](1)).
+            find { !_.getElementsByAttributeValue(
+              "class", getString(R.string.key_form_login_error_class)).isEmpty
+            } foreach { res => val msg = res.text
+              Log w(TAG, "Login failure, caused: " + msg)
+              authKey = ""; chatCookies = null
+              return LoginResult(success = false,
+                errorStringId = R.string.chat_error_login, errorMsg = msg)
             }
-          } catch { case e: java.net.SocketTimeoutException =>
-              Log w(TAG, "Timeout on request new messages")
-              sendMessageDelayed(GetShouts, 3300)
-          }
+
+          // Поиск ссылки для выхода
+          val link = doc getElementsByAttributeValueStarting("href",
+            url + "&do=logout") get 0 attr "href"
+
+          // Из нее берем параметр k - он нужен для составления запросов
+          assert(secureHash isEmpty)
+          secureHash = Uri parse link getQueryParameter "k"
+
+          enterUser()
+          publishProgress("Login success")
+          Log i(TAG, "Login successful")
+          LoginResult(success = true)
+
+        } catch {
+          case e: java.net.SocketTimeoutException =>
+            Log w(TAG, "Timeout on login")
+            authKey = ""
+            LoginResult(success = false,
+              errorStringId = R.string.chat_error_network_timeout)
+
+          case e: java.io.IOException =>
+            Log e(TAG, "Login failure, caused: " + e.getMessage)
+            e printStackTrace()
+            authKey = ""
+            LoginResult(success = false,
+              errorStringId = R.string.chat_error_network,
+              errorMsg = e.getMessage)
+
+          case e: IndexOutOfBoundsException =>
+            Log e(TAG, "Login failure, caused: " + e.getMessage)
+            e printStackTrace()
+            authKey = ""; chatCookies = null
+            LoginResult(success = false,
+              errorStringId = R.string.chat_error_user)
+        }
       }
     }
 
-    private def performLogin(name: String, pass: String,
-      remember: Boolean, anon: Boolean): GuiHandler.GuiMessage = {
-      var resp: Connection.Response = null
+    val performLogout = new Runnable {
+      override def run(): Unit =
+        guiHandler sendMessage doLogout(enterUrl, getTimeout)
 
-      try {
-        publishProgress("Connect to forum...")
-        Log i(TAG, "Request login info from " + enterUrl)
-        resp = Jsoup.connect(enterUrl)
-          .method(Connection.Method.GET).execute()
+      private def doLogout(baseUrl: String, timeout: Int): GuiMessage = {
+        val url = baseUrl + "&do=logout&k=" + secureHash
 
-        publishProgress("Connected. Parse login form...")
-        Log i(TAG, "Connected to " + enterUrl)
-        Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
+        try {
+          publishProgress("Logout from forum...")
+          Log i(TAG, "Logout from " + url)
 
-        val form = resp parse() getElementsByTag "form" forms() get 0
-        authKey = form getElementsByAttributeValue("name",
-          activity.getString(R.string.key_form_auth)) `val`()
-        val action = if (form.hasAttr("action"))
-          form.absUrl("action") else form.baseUri()
-        val method = if (form.attr("method").toUpperCase.equals("POST"))
-          Connection.Method.POST else Connection.Method.GET
+          val resp = Jsoup.connect(url).cookies(chatCookies)
+            .method(Connection.Method.GET).timeout(timeout).execute()
 
-        publishProgress("Send login info to forum...")
-        Log i(TAG, "Send login info to " + action)
+          Log i(TAG, "Connected to " + url)
+          Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
 
-        resp = Jsoup.connect(action)
-          .data(activity.getString(R.string.key_form_auth), authKey)
-          .data(activity.getString(R.string.key_form_referrer), chatUrl)
-          .data(activity.getString(R.string.key_form_name), name)
-          .data(activity.getString(R.string.key_form_pass), pass)
-          .data(activity.getString(R.string.key_form_remember), if (remember) "1" else "0")
-          .data(activity.getString(R.string.key_form_anon), if (anon) "1" else "0")
-          .method(method).execute()
+          exitUser()
+          publishProgress("Logout success")
+          Log i(TAG, "Logout successful")
+          LogoutResult(result = true)
 
-        Log i(TAG, "Connected to " + action)
-        Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
-        chatCookies = resp.cookies
+        } catch { case e: java.io.IOException =>
+          Log e(TAG, "Logout failure, caused: " + e.getMessage)
+          e printStackTrace()
+          LogoutResult(result = false)
+        }
+      }
+    }
 
-      } catch {
-        case e: java.io.IOException =>
-          Log e(TAG, "Login failure, caused: " + e.getMessage)
-          e.printStackTrace()
-          return GuiHandler.LoginResult(null, null, null)
-        case e: ExceptionInInitializerError =>
-          Log.wtf(TAG, "Jsoup initialisation error", e)
-          e.printStackTrace()
-          return GuiHandler.LoginResult(null, "", null)
+    var checkForNewMessages: Runnable = null
+
+    private final class CheckForNewMessages extends Runnable {
+      override def run(): Unit = {
+        var interval = getMsgInterval
+        try {
+          doRequest(getTimeout) foreach { messages =>
+            guiHandler sendMessage messages }
+
+        } catch { case e: java.net.SocketTimeoutException =>
+          Log w(TAG, "Timeout on request new messages")
+          interval = 1000
+
+        } finally if(this eq checkForNewMessages) {
+          workerHandler postDelayed(this, interval)
+        }
       }
 
-      try {
-        publishProgress("Parse result...")
-        Log i(TAG, "Parse result")
-        val doc = resp parse()
-        val pTags = doc getElementsByTag "p" toArray new Array[Element](0)
-        val res = pTags find (!_.getElementsByAttributeValue("class",
-          activity.getString(R.string.key_form_login_error_class)).isEmpty)
+      private def doRequest(timeout: Int): Option[Messages] = {
+        val url = siteUrl + "?s=" + chatCookies.get("session_id") +
+          "&app=shoutbox&module=ajax&section=coreAjax" +
+          "&secure_key=" + secureHash + "&type=getShouts" +
+          (if (lastMsgId.isEmpty) "" else "&lastid=" + lastMsgId)
 
-        if(res.isDefined) {
-          val msg = res.get.text
-          Log e(TAG, "Login failure, caused: " + msg)
-          return GuiHandler.LoginResult("", msg, null)
+        Log i(TAG, "Request for new messages from " + url)
+        val resp = Jsoup.connect(url).cookies(chatCookies)
+          .method(Connection.Method.GET).timeout(timeout).execute()
+
+        Log i(TAG, "Connected to " + url)
+        Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
+
+        val doc = resp parse(); val body = doc.body.html
+        if (body equals getString(R.string.key_body_no_permission)) {
+          Log e(TAG, "Obtained no-permission error")
+          exitUser()
+          val noPermMessage = Message(getString(R.string.key_body_no_permission),
+            getString(R.string.key_system_user), "",
+            getString(R.string.chat_error_no_permission))
+          return Some(Messages(Seq(noPermMessage)))
+        } else if (body.isEmpty) {
+          Log i(TAG, "There are no new messages on server")
+          return None
         }
 
-        // Поиск ссылки для выхода
-        val link = doc getElementsByAttributeValueStarting("href",
-          enterUrl + "&do=logout") get 0 attr "href"
+        val spans = doc getElementsByTag "span" toArray new Array[Element](0)
+        val script = doc getElementsByAttributeValue("type", "text/javascript") get 0
 
-        // Параметр k нужен для составления запросов
-        secureHash = Uri parse link getQueryParameter "k"
+        // Все числа в скрипте - номера сообщений
+        val ids = "([0-9]+)".r.findAllIn(script.html).toIndexedSeq
+        val names = spans filter (!_.getElementsByAttributeValue("itemprop", "name").isEmpty)
+        val timestamps = spans filter (!_.getElementsByAttributeValue("class", "right desc").isEmpty)
+        val messages = spans filter (!_.getElementsByAttributeValue("class", "shoutbox_text").isEmpty)
 
-        publishProgress("Login success")
-        Log i(TAG, "Login successful")
-        GuiHandler.LoginResult(authKey, secureHash, chatCookies)
+        assert((ids.size == names.size) && (names.size == timestamps.size) && (timestamps.size == messages.size))
+        val shouts = for (i <- 0 until names.size)
+          yield Message(ids(i), names(i).html, timestamps(i).html, messages(i).html)
 
-      } catch { case e: IndexOutOfBoundsException =>
-        Log e(TAG, "Login failure, caused: " + e.getMessage)
-        e.printStackTrace()
-        GuiHandler.LoginResult("", null, null)
+        lastMsgId = ids.last
+        Log i(TAG, "Obtained " + shouts.size + " new messages")
+        Some(Messages(shouts))
       }
-    }
-
-    private def performLogout(): GuiHandler.GuiMessage = {
-      val logoutUrl = enterUrl + "&do=logout&k=" + secureHash
-
-      try {
-        publishProgress("Logout from forum...")
-        Log i(TAG, "Logout from " + logoutUrl)
-
-        val resp = Jsoup.connect(logoutUrl).cookies(chatCookies)
-          .method(Connection.Method.GET).execute()
-
-        Log i(TAG, "Connected to " + logoutUrl)
-        Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
-
-        authKey = ""; secureHash = ""; chatCookies = null
-        publishProgress("Logout success")
-        Log i(TAG, "Logout successful")
-        GuiHandler.LogoutResult(result = true)
-
-      } catch { case e: java.io.IOException =>
-        Log e(TAG, "Logout failure, caused: " + e.getMessage)
-        e printStackTrace()
-        GuiHandler.LogoutResult(result = false)
-      }
-    }
-
-    private def requestNewShouts(): Option[GuiHandler.Messages] = {
-      val url = siteUrl + "?s=" + chatCookies.get("session_id") +
-        "&app=shoutbox&module=ajax&section=coreAjax&secure_key=" +
-        secureHash + "&type=getShouts" + (if (lastMsgId.isEmpty) "" else "&lastid=" + lastMsgId)
-      Log i(TAG, "Request for new messages on " + url)
-      val resp = Jsoup.connect(url).cookies(chatCookies)
-        .method(Connection.Method.GET).execute()
-
-      Log i(TAG, "Connected to " + url)
-      Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
-
-      val doc = resp parse(); val body = doc.body.html
-      if (body equals activity.getString(R.string.key_body_no_permission)) {
-        Log e(TAG, "Obtained no-permission error")
-        return Some(GuiHandler.NoPermMessage)
-      } else if (body.isEmpty) {
-        Log i(TAG, "There are no new messages on server")
-        return None
-      }
-
-      val spans = doc getElementsByTag "span" toArray new Array[Element](0)
-      val script = doc getElementsByAttributeValue("type", "text/javascript") get 0
-
-      // Все числа в скрипте - номера сообщений
-      val ids = "([0-9]+)".r.findAllIn(script.html).toIndexedSeq
-      val names = spans filter (!_.getElementsByAttributeValue("itemprop", "name").isEmpty)
-      val timestamps = spans filter (!_.getElementsByAttributeValue("class", "right desc").isEmpty)
-      val messages = spans filter (!_.getElementsByAttributeValue("class", "shoutbox_text").isEmpty)
-
-      assert((ids.size == names.size) && (names.size == timestamps.size) && (timestamps.size == messages.size))
-      val shouts = for (i <- 0 until names.size)
-        yield Message(ids(i), names(i).html, timestamps(i).html, messages(i).html)
-
-      Log i(TAG, "Obtained " + ids.size + " new messages")
-      lastMsgId = ids.last
-      Some(GuiHandler.Messages(shouts))
     }
   }
 }

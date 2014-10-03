@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="key_system_user">*** SYSTEM ***</string>
+
     <string name="key_form_auth">auth_key</string>
     <string name="key_form_name">ips_username</string>
     <string name="key_form_pass">ips_password</string>
@@ -13,4 +15,6 @@
     <string name="key_user_pass">enterPass</string>
     <string name="key_user_remember">enterRemember</string>
     <string name="key_user_anon">enterAnon</string>
+    <string name="key_network_refresh_interval">refreshInterval</string>
+    <string name="key_network_timeout">networkTimeout</string>
 </resources>

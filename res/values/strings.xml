@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">PirotehnikaRuhelp Chat</string>
+    <string name="app_name">Ruhelp pirochat</string>
+
 
     <string name="chat_user_login">Вы зашли</string>
     <string name="chat_user_logout">Вы вышли</string>
@@ -15,8 +16,9 @@
     <string name="chat_login_progress_title">Вход на форум</string>
     <string name="chat_logout_progress_title">Выход с форума</string>
 
-    <string name="chat_error_login">Сообщение форума:</string>
-    <string name="chat_error_network">Ошибка сети</string>
+    <string name="chat_error_login">Ошибка регистрации:</string>
+    <string name="chat_error_network_timeout">Таймаут подключения к серверу</string>
+    <string name="chat_error_network">Ошибка сети :</string>
     <string name="chat_error_user">Неверные имя/пароль</string>
     <string name="chat_error_no_permission">Нет доступа к чату для вашего логина.
         Нужно заново зайти на форум.</string>
@@ -35,5 +37,11 @@
     <string name="prefs_user_remember">Запоминать меня</string>
     <string name="prefs_user_anon">Входить анонимно</string>
     <string name="prefs_user_anon2">Не добавлять меня в список активных пользователей</string>
+    <string name="prefs_network">Настройки сети</string>
+    <string name="prefs_network_refresh_interval">Частота обновления</string>
+    <string name="prefs_network_refresh_interval2">
+        Частота проверки новых сообщений в секундах</string>
+    <string name="prefs_network_timeout">Таймаут сетевых операций</string>
+    <string name="prefs_network_timeout2">Таймаут сетевых запросов в секундах</string>
 
 </resources>

@@ -1,16 +1,11 @@
 package com.pirotehnika_ruhelp.chat
 
-import android.app.{ProgressDialog, AlertDialog, Activity}
-import android.content.{DialogInterface, Context, Intent}
-import android.net.{Uri, ConnectivityManager}
+import android.app.{AlertDialog, Activity}
+import android.content.{DialogInterface, Intent}
 import android.os._
-import android.preference.PreferenceManager
 import android.provider.Settings
-import android.util.Log
 import android.view.{Menu, MenuItem}
 import android.widget._
-import org.jsoup.nodes.Element
-import org.jsoup.{Connection, Jsoup}
 
 class MainActivity extends Activity {
   import MainActivity._
