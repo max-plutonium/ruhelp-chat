@@ -76,6 +76,7 @@ protected[chat] class Chat(private val activity: Activity) {
 
   private sealed trait GuiMessage
   private case object StartChat extends GuiMessage
+  private case class AlreadyEntered(result: Boolean, errorId: Int = -1) extends GuiMessage
   private case object Login extends GuiMessage
   private case class UpdateProgress(message: String) extends GuiMessage
   private case class LoginResult(success: Boolean,
@@ -93,7 +94,7 @@ protected[chat] class Chat(private val activity: Activity) {
 
     def sendMessage(msg: GuiMessage) = super.sendMessage(obtainMessage(1, msg))
 
-    protected def startProgress(titleId: Int, steps: Int) = {
+    private final def startProgress(titleId: Int, steps: Int) = {
       progressDialog = new ProgressDialog(context)
       progressDialog setTitle titleId
       progressDialog setMessage ""
@@ -103,21 +104,53 @@ protected[chat] class Chat(private val activity: Activity) {
       progressDialog show()
     }
 
-    protected def updateProgress(message: String) = {
+    private final def startSpinnerProgress(message: String) = {
+      progressDialog = new ProgressDialog(context)
+      progressDialog setMessage message
+      progressDialog setProgressStyle ProgressDialog.STYLE_SPINNER
+      progressDialog show()
+    }
+
+    private final def updateProgress(message: String) = {
       progressDialog setProgress progressDialog.getProgress + 1
       progressDialog setMessage message
     }
 
-    protected def stopProgress() = {
+    private final def stopProgress() = {
       progressDialog dismiss()
       progressDialog = null
     }
 
+    private final def startCheckForUserEnter() = {
+      if(workerHandler ne null) {
+        workerHandler post workerHandler.checkForEnter
+        startSpinnerProgress(getString(R.string.chat_login_progress_title))
+        loginOrLogout = true
+      } else
+        sendMessage(StartChat)
+    }
+    
     override def handleMessage(message: android.os.Message): Unit = {
       super.handleMessage(message)
       message.obj match {
         case StartChat =>
           lstChat setAdapter listAdapter
+          if(!prefs.getString(getString(R.string.key_user_name), "").isEmpty)
+            startCheckForUserEnter()
+
+        case AlreadyEntered(result, errorId) =>
+          stopProgress()
+          if(result)
+            Toast makeText(context, R.string.chat_user_login, Toast.LENGTH_LONG) show()
+          else if(-1 != errorId)
+            Toast makeText(context, errorId, Toast.LENGTH_LONG) show()
+          else {
+            val notEnteredMessage = Message("not entered",
+              getString(R.string.key_system_user), "",
+              getString(R.string.chat_user_not_entered))
+            sendMessage(Messages(Seq(notEnteredMessage)))
+          }
+          loginOrLogout = false
 
         case Login =>
           startProgress(R.string.chat_login_progress_title, 5)
@@ -171,12 +204,97 @@ protected[chat] class Chat(private val activity: Activity) {
       assert(checkForNewMessages eq null)
       checkForNewMessages = new CheckForNewMessages
       workerHandler post checkForNewMessages
+      saveCookies()
     }
 
     private final def exitUser() = {
       removeCallbacks(checkForNewMessages)
-      authKey = ""; secureHash = ""; chatCookies = null
+      authKey = ""; secureHash = ""; chatCookies.clear()
       checkForNewMessages = null
+      saveCookies()
+    }
+
+    private final def saveCookies() = {
+      import java.util.Map.Entry
+      import collection.JavaConverters.mutableSetAsJavaSetConverter
+      val ed = prefs.edit()
+      val strSet = collection.mutable.Set[String]()
+      chatCookies.entrySet().toArray(new Array[Entry[String, String]](chatCookies.size)).
+        foreach { entry => strSet += entry.getKey + "%" + entry.getValue }
+      ed.putStringSet("cookies", strSet.asJava).commit()
+    }
+
+    private final def restoreCookies(): Unit = {
+      import collection.JavaConversions.mutableMapAsJavaMap
+      if(chatCookies eq null)
+        chatCookies = collection.mutable.Map[String, String]()
+      val strSet = prefs getStringSet("cookies", null)
+      if(strSet ne null)
+        strSet.toArray(new Array[String](strSet.size)).
+          foreach { str => val lst = str split "%"
+            chatCookies put(lst(0), lst(1))
+          }
+    }
+
+    val checkForEnter = new Runnable {
+      override def run(): Unit = {
+        try {
+          guiHandler sendMessage doCheck(enterUrl, getTimeout)
+
+        } catch {
+          case e: java.net.SocketTimeoutException =>
+            Log w(TAG, "Timeout on check for user enter")
+            workerHandler post this
+        }
+      }
+
+      private def doCheck(url: String, timeout: Int): GuiMessage = {
+        restoreCookies()
+
+        try {
+          Log i(TAG, "Check for user already entered from " + url)
+
+          // Не используем user-agent, т.к. будет недоступен чат вообще
+          val doc = Jsoup.connect(url).timeout(timeout)
+            .cookies(chatCookies).get()
+
+          // Если сохраненные cookies валидны, то для форума пользователь
+          // еще не вышел, и мы увидим ссылку для выхода
+          val link = doc getElementsByAttributeValueStarting("href",
+            url + "&do=logout") get 0 attr "href"
+
+          // Из нее берем параметр k - он нужен для составления запросов
+          secureHash = Uri parse link getQueryParameter "k"
+
+          enterUser()
+          Log i(TAG, "Login successful because cookies still valid")
+          AlreadyEntered(result = true)
+
+        } catch {
+          case e: IndexOutOfBoundsException =>
+            Log i(TAG, "User is not entered because cookies are invalid")
+            exitUser()
+            AlreadyEntered(result = false)
+
+          case e: org.jsoup.HttpStatusException =>
+            Log w(TAG, "Not connected to " + e.getUrl)
+            Log w(TAG, "Status code [" + e.getStatusCode + "]")
+            exitUser()
+            AlreadyEntered(result = false,
+              errorId = R.string.chat_error_network_bad_request)
+
+          case e: java.net.SocketTimeoutException =>
+            throw e
+
+          case e: java.io.IOException =>
+            Log e(TAG, "Check for user enter failure, caused: \""
+              + e.getMessage + "\" by: " + e.getCause)
+            e printStackTrace()
+            exitUser()
+            AlreadyEntered(result = false,
+              errorId = R.string.chat_error_network)
+        }
+      }
     }
 
     private final def publishProgress(msg: String) =
@@ -192,12 +310,14 @@ protected[chat] class Chat(private val activity: Activity) {
         val remember = prefs getBoolean(getString(R.string.key_user_remember), false)
         val anon = prefs getBoolean(getString(R.string.key_user_anon), false)
         var resp: Connection.Response = null
+        restoreCookies()
 
         try {
           publishProgress("Connect to forum...")
           Log i(TAG, "Request for login info from " + url)
           resp = Jsoup.connect(url).timeout(timeout)
-            .userAgent(getUserAgent).method(Connection.Method.GET).execute()
+            .userAgent(getUserAgent).cookies(chatCookies)
+            .method(Connection.Method.GET).execute()
 
           publishProgress("Connected. Parse login form...")
           Log i(TAG, "Connected to " + url)
@@ -215,7 +335,8 @@ protected[chat] class Chat(private val activity: Activity) {
           publishProgress("Send login info to forum...")
           Log i(TAG, "Send login info to " + action)
 
-          resp = Jsoup.connect(action)
+          // Не используем user-agent, т.к. будет недоступен чат вообще
+          resp = Jsoup.connect(action).cookies(chatCookies)
             .data(getString(R.string.key_form_auth), authKey)
             .data(getString(R.string.key_form_referrer), chatUrl)
             .data(getString(R.string.key_form_name), name)
@@ -226,7 +347,6 @@ protected[chat] class Chat(private val activity: Activity) {
 
           Log i(TAG, "Connected to " + action)
           Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
-          assert(chatCookies eq null)
           chatCookies = resp.cookies
 
           publishProgress("Parse result...")
@@ -239,7 +359,7 @@ protected[chat] class Chat(private val activity: Activity) {
             filter { _.attr("class").equals(getString(R.string.key_form_login_error_class))
             } foreach { res => val msg = res.text
               Log w(TAG, "Login failure, caused: " + msg)
-              authKey = ""; chatCookies = null
+              authKey = ""; chatCookies.clear()
               return LoginResult(success = false,
                 errorStringId = R.string.chat_error_login, errorMsg = msg)
             }
@@ -266,7 +386,7 @@ protected[chat] class Chat(private val activity: Activity) {
 
           case e: java.io.IOException =>
             Log e(TAG, "Login failure, caused: \""
-              + e.getMessage + "\" by: " + e.getCause.getMessage)
+              + e.getMessage + "\" by: " + e.getCause)
             e printStackTrace()
             authKey = ""
             LoginResult(success = false,
@@ -276,7 +396,7 @@ protected[chat] class Chat(private val activity: Activity) {
           case e: IndexOutOfBoundsException =>
             Log e(TAG, "Login failure, caused: " + e.getMessage)
             e printStackTrace()
-            authKey = ""; chatCookies = null
+            authKey = ""; chatCookies.clear()
             LoginResult(success = false,
               errorStringId = R.string.chat_error_user)
         }
@@ -294,8 +414,9 @@ protected[chat] class Chat(private val activity: Activity) {
           publishProgress("Logout from forum...")
           Log i(TAG, "Logout from " + url)
 
-          val resp = Jsoup.connect(url).cookies(chatCookies).userAgent(getUserAgent)
-            .method(Connection.Method.GET).timeout(timeout).execute()
+          val resp = Jsoup.connect(url).cookies(chatCookies)
+            .userAgent(getUserAgent).method(Connection.Method.GET)
+            .timeout(timeout).execute()
 
           Log i(TAG, "Connected to " + url)
           Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
@@ -329,7 +450,7 @@ protected[chat] class Chat(private val activity: Activity) {
 
           case e: java.io.IOException =>
             Log e(TAG, "Check for new messages failure, caused: \""
-              + e.getMessage + "\" by: " + e.getCause.getMessage)
+              + e.getMessage + "\" by: " + e.getCause)
             e printStackTrace()
             exitUser()
 

@@ -5,6 +5,7 @@
 
     <string name="chat_user_login">Вы зашли</string>
     <string name="chat_user_logout">Вы вышли</string>
+    <string name="chat_user_not_entered">Вы не зашли</string>
 
     <string name="chat_login.alert_title">Передача данных</string>
     <string name="chat_login.alert_msg">Передача данных отключена.
@@ -17,8 +18,9 @@
     <string name="chat_logout_progress_title">Выход с форума</string>
 
     <string name="chat_error_login">Ошибка регистрации:</string>
-    <string name="chat_error_network_timeout">Таймаут подключения к серверу</string>
     <string name="chat_error_network">Ошибка сети</string>
+    <string name="chat_error_network_bad_request">Страница недоступна</string>
+    <string name="chat_error_network_timeout">Таймаут подключения к серверу</string>
     <string name="chat_error_user">Неверные имя/пароль</string>
     <string name="chat_error_no_permission">Нет доступа к чату для вашего логина.
         Нужно заново зайти на форум.</string>
