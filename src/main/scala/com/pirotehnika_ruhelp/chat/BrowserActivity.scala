@@ -1,11 +1,9 @@
 package com.pirotehnika_ruhelp.chat
 
-import android.app.Activity
 import android.os.Bundle
-import android.webkit.WebView
 
-class BrowserActivity extends Activity {
-  private lazy val webView = findViewById(R.id.webView).asInstanceOf[WebView]
+class BrowserActivity extends TypedActivity {
+  private lazy val webView = findView(TR.webView)
 
   override def onCreate(savedInstanceState: Bundle): Unit = {
       super.onCreate(savedInstanceState)

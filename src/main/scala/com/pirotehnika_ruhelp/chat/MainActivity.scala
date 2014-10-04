@@ -1,13 +1,13 @@
 package com.pirotehnika_ruhelp.chat
 
-import android.app.{AlertDialog, Activity}
+import android.app.AlertDialog
 import android.content.{DialogInterface, Intent}
 import android.os._
 import android.provider.Settings
 import android.view.{Menu, MenuItem}
 import android.widget._
 
-class MainActivity extends Activity {
+class MainActivity extends TypedActivity {
   import MainActivity._
   private val chat = new Chat(this)
 

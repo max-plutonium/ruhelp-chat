@@ -1,16 +1,16 @@
 package com.pirotehnika_ruhelp.chat
 
-import android.app.{ProgressDialog, Activity}
+import android.app.ProgressDialog
 import android.content.Context
 import android.net.{Uri, ConnectivityManager}
 import android.os.{HandlerThread, Looper, Handler}
 import android.preference.PreferenceManager
 import android.util.Log
-import android.widget.{Toast, ListView}
+import android.widget.Toast
 import org.jsoup.nodes.Element
 import org.jsoup.{Connection, Jsoup}
 
-protected[chat] class Chat(private val activity: Activity) {
+protected[chat] class Chat(private val activity: TypedActivity) {
 
   private var userEntered = false
 
@@ -88,7 +88,7 @@ protected[chat] class Chat(private val activity: Activity) {
   private class GuiHandler(private val context: Context) extends Handler {
     private val arrayList = collection.mutable.ArrayBuffer[Message]()
     private lazy val listAdapter = MessageAdapter(context, arrayList)
-    private lazy val lstChat = activity.findViewById(R.id.lstChat).asInstanceOf[ListView]
+    private lazy val lstChat = activity.findView(TR.lstChat)
     private var progressDialog: ProgressDialog = null
     private[Chat] var loginOrLogout = false
 
@@ -140,6 +140,7 @@ protected[chat] class Chat(private val activity: Activity) {
 
         case AlreadyEntered(result, errorId) =>
           stopProgress()
+          loginOrLogout = false
           if(result)
             Toast makeText(context, R.string.chat_user_login, Toast.LENGTH_LONG) show()
           else if(-1 != errorId)
@@ -150,7 +151,6 @@ protected[chat] class Chat(private val activity: Activity) {
               getString(R.string.chat_user_not_entered))
             sendMessage(Messages(Seq(notEnteredMessage)))
           }
-          loginOrLogout = false
 
         case Login =>
           startProgress(R.string.chat_login_progress_title, 5)
