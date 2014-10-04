@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Ruhelp pirochat</string>
+    <string name="app_name">Ruhelp chat</string>
 
 
     <string name="chat_user_login">Вы зашли</string>

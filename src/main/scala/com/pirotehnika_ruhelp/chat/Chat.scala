@@ -129,7 +129,7 @@ protected[chat] class Chat(private val activity: Activity) {
       } else
         sendMessage(StartChat)
     }
-    
+
     override def handleMessage(message: android.os.Message): Unit = {
       super.handleMessage(message)
       message.obj match {
@@ -221,6 +221,7 @@ protected[chat] class Chat(private val activity: Activity) {
       val strSet = collection.mutable.Set[String]()
       chatCookies.entrySet().toArray(new Array[Entry[String, String]](chatCookies.size)).
         foreach { entry => strSet += entry.getKey + "%" + entry.getValue }
+      ed.putString("secureHash", secureHash)
       ed.putStringSet("cookies", strSet.asJava).commit()
     }
 
@@ -228,6 +229,7 @@ protected[chat] class Chat(private val activity: Activity) {
       import collection.JavaConversions.mutableMapAsJavaMap
       if(chatCookies eq null)
         chatCookies = collection.mutable.Map[String, String]()
+      secureHash = prefs getString("secureHash", "")
       val strSet = prefs getStringSet("cookies", null)
       if(strSet ne null)
         strSet.toArray(new Array[String](strSet.size)).
@@ -239,7 +241,7 @@ protected[chat] class Chat(private val activity: Activity) {
     val checkForEnter = new Runnable {
       override def run(): Unit = {
         try {
-          guiHandler sendMessage doCheck(enterUrl, getTimeout)
+          guiHandler sendMessage doCheck(getTimeout)
 
         } catch {
           case e: java.net.SocketTimeoutException =>
@@ -248,34 +250,38 @@ protected[chat] class Chat(private val activity: Activity) {
         }
       }
 
-      private def doCheck(url: String, timeout: Int): GuiMessage = {
+      private def doCheck(timeout: Int): GuiMessage = {
         restoreCookies()
+
+        val url = siteUrl + "?s=" + chatCookies.get("session_id") +
+          "&app=shoutbox&module=ajax&section=coreAjax" +
+          "&secure_key=" + secureHash + "&type=getMembers"
 
         try {
           Log i(TAG, "Check for user already entered from " + url)
 
           // Не используем user-agent, т.к. будет недоступен чат вообще
-          val doc = Jsoup.connect(url).timeout(timeout)
-            .cookies(chatCookies).get()
+          val body = Jsoup.connect(url).timeout(timeout)
+            .cookies(chatCookies).ignoreContentType(true).get().body.html
 
-          // Если сохраненные cookies валидны, то для форума пользователь
-          // еще не вышел, и мы увидим ссылку для выхода
-          val link = doc getElementsByAttributeValueStarting("href",
-            url + "&do=logout") get 0 attr "href"
+          if(body equals getString(R.string.key_body_no_permission)) {
+            Log i(TAG, "User is not entered because cookies are invalid")
+            exitUser()
+            return AlreadyEntered(result = false)
+          }
 
-          // Из нее берем параметр k - он нужен для составления запросов
-          secureHash = Uri parse link getQueryParameter "k"
-
+          val usersRaw = body.replaceAll("&quot;", "").replaceAll("\\\\", "").
+            replaceAll("&lt;", "<").replaceAll("&gt;", ">")//.split(",")
+          val total = "TOTAL:(\\d+)".r.findFirstIn(usersRaw)
+          val names = """NAMES:\[\n([\w\s="<>:\/\-\.]+)\]""".r.findFirstIn(usersRaw)
+          val guests = "GUESTS:(\\d+)".r.findFirstIn(usersRaw)
+          val members = "MEMBERS:(\\d+)".r.findFirstIn(usersRaw)
+          val anon = "ANON:(\\d+)".r.findFirstIn(usersRaw)
           enterUser()
-          Log i(TAG, "Login successful because cookies still valid")
+          Log i(TAG, "Login successful because cookies still valid \n" + body)
           AlreadyEntered(result = true)
 
         } catch {
-          case e: IndexOutOfBoundsException =>
-            Log i(TAG, "User is not entered because cookies are invalid")
-            exitUser()
-            AlreadyEntered(result = false)
-
           case e: org.jsoup.HttpStatusException =>
             Log w(TAG, "Not connected to " + e.getUrl)
             Log w(TAG, "Status code [" + e.getStatusCode + "]")
@@ -489,7 +495,7 @@ protected[chat] class Chat(private val activity: Activity) {
         val script = doc getElementsByAttributeValue("type", "text/javascript") get 0
 
         // Все числа в скрипте - номера сообщений
-        val ids = "([0-9]+)".r.findAllIn(script.html).toIndexedSeq
+        val ids = "(\\d+)".r.findAllIn(script.html).toIndexedSeq
         val names = spans filter (!_.getElementsByAttributeValue("itemprop", "name").isEmpty)
         val timestamps = spans filter (!_.getElementsByAttributeValue("class", "right desc").isEmpty)
         val messages = spans filter (!_.getElementsByAttributeValue("class", "shoutbox_text").isEmpty)
