@@ -271,14 +271,14 @@ protected[chat] class Chat(private val activity: Activity) {
           }
 
           val usersRaw = body.replaceAll("&quot;", "").replaceAll("\\\\", "").
-            replaceAll("&lt;", "<").replaceAll("&gt;", ">")//.split(",")
+            replaceAll("&lt;", "<").replaceAll("&gt;", ">")
           val total = "TOTAL:(\\d+)".r.findFirstIn(usersRaw)
-          val names = """NAMES:\[\n([\w\s="<>:\/\-\.]+)\]""".r.findFirstIn(usersRaw)
+          val names = """NAMES:\[\n(.+)\]""".r.findFirstIn(usersRaw)
           val guests = "GUESTS:(\\d+)".r.findFirstIn(usersRaw)
           val members = "MEMBERS:(\\d+)".r.findFirstIn(usersRaw)
           val anon = "ANON:(\\d+)".r.findFirstIn(usersRaw)
           enterUser()
-          Log i(TAG, "Login successful because cookies still valid \n" + body)
+          Log i(TAG, "Login successful because cookies still valid")
           AlreadyEntered(result = true)
 
         } catch {
