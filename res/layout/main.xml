@@ -1,19 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<RelativeLayout
         xmlns:android="http://schemas.android.com/apk/res/android"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="horizontal">
+        android:layout_height="match_parent" >
+
     <LinearLayout
-            android:id="@+id/linearLayout1"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical">
+            android:orientation="horizontal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="top"
+            android:layout_alignParentTop="true"
+            android:layout_above="@+id/lytMessage">
+
         <ListView
                 android:id="@+id/lstChat"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_gravity="center_horizontal">
+                android:textFilterEnabled="true">
         </ListView>
     </LinearLayout>
-</LinearLayout>
+
+    <RelativeLayout
+            android:id="@+id/lytMessage"
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="bottom"
+            android:layout_alignParentBottom="true">
+
+        <EditText
+                android:id="@+id/tvMessage"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentLeft="true"
+                android:layout_toLeftOf="@+id/button"
+                android:layout_centerVertical="true"
+                android:inputType="textMultiLine"
+                android:maxLines="5" android:maxHeight="100dp"/>
+        <Button
+                android:id="@+id/button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentRight="true"
+                android:text="New Button"
+                android:layout_toLeftOf="@+id/button"
+                android:focusable="true"
+                android:layout_centerVertical="true"/>
+    </RelativeLayout>
+</RelativeLayout>
