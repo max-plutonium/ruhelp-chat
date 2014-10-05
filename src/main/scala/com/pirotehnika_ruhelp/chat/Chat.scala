@@ -84,6 +84,7 @@ protected[chat] class Chat(private val activity: TypedActivity) {
   private case object Logout extends GuiMessage
   private case class LogoutResult(result: Boolean) extends GuiMessage
   private case class Messages(seq: Seq[Message]) extends GuiMessage
+  private case class PostResult(success: Boolean, errorId: Int = -1) extends GuiMessage
 
   private class GuiHandler(private val context: Context) extends Handler {
     private val arrayList = collection.mutable.ArrayBuffer[Message]()
@@ -177,6 +178,10 @@ protected[chat] class Chat(private val activity: TypedActivity) {
           arrayList ++= seq
           listAdapter notifyDataSetChanged()
           lstChat smoothScrollToPosition listAdapter.getCount
+
+        case PostResult(success, errorId) =>
+          if(!success)
+            Toast makeText(context, errorId, Toast.LENGTH_LONG) show()
       }
     }
 
@@ -199,6 +204,9 @@ protected[chat] class Chat(private val activity: TypedActivity) {
     private var secureHash = ""
     private var chatCookies: java.util.Map[String, String] = null
     private var lastMsgId = ""
+
+    final def postMessage(text: String) =
+      workerHandler post new PostMessage(text)
 
     private final def enterUser() = {
       assert(checkForNewMessages eq null)
@@ -252,7 +260,6 @@ protected[chat] class Chat(private val activity: TypedActivity) {
 
       private def doCheck(timeout: Int): GuiMessage = {
         restoreCookies()
-
         val url = siteUrl + "?s=" + chatCookies.get("session_id") +
           "&app=shoutbox&module=ajax&section=coreAjax" +
           "&secure_key=" + secureHash + "&type=getMembers"
@@ -261,8 +268,8 @@ protected[chat] class Chat(private val activity: TypedActivity) {
           Log i(TAG, "Check for user already entered from " + url)
 
           // Не используем user-agent, т.к. будет недоступен чат вообще
-          val body = Jsoup.connect(url).timeout(timeout)
-            .cookies(chatCookies).ignoreContentType(true).get().body.html
+          val body = Jsoup.connect(url).cookies(chatCookies)
+            .timeout(timeout).ignoreContentType(true).get().body.html
 
           if(body equals getString(R.string.key_body_no_permission)) {
             Log i(TAG, "User is not entered because cookies are invalid")
@@ -282,15 +289,15 @@ protected[chat] class Chat(private val activity: TypedActivity) {
           AlreadyEntered(result = true)
 
         } catch {
+          case e: java.net.SocketTimeoutException =>
+            throw e
+
           case e: org.jsoup.HttpStatusException =>
             Log w(TAG, "Not connected to " + e.getUrl)
             Log w(TAG, "Status code [" + e.getStatusCode + "]")
             exitUser()
             AlreadyEntered(result = false,
               errorId = R.string.chat_error_network_bad_request)
-
-          case e: java.net.SocketTimeoutException =>
-            throw e
 
           case e: java.io.IOException =>
             Log e(TAG, "Check for user enter failure, caused: \""
@@ -315,13 +322,12 @@ protected[chat] class Chat(private val activity: TypedActivity) {
         val pass = prefs getString(getString(R.string.key_user_pass), "")
         val remember = prefs getBoolean(getString(R.string.key_user_remember), false)
         val anon = prefs getBoolean(getString(R.string.key_user_anon), false)
-        var resp: Connection.Response = null
         restoreCookies()
 
         try {
           publishProgress("Connect to forum...")
           Log i(TAG, "Request for login info from " + url)
-          resp = Jsoup.connect(url).timeout(timeout)
+          var resp = Jsoup.connect(url).timeout(timeout)
             .userAgent(getUserAgent).cookies(chatCookies)
             .method(Connection.Method.GET).execute()
 
@@ -507,6 +513,48 @@ protected[chat] class Chat(private val activity: TypedActivity) {
         lastMsgId = ids.last
         Log i(TAG, "Obtained " + shouts.size + " new messages")
         Some(Messages(shouts))
+      }
+    }
+
+    private class PostMessage(private val text: String) extends Runnable {
+      override def run(): Unit = {
+        guiHandler sendMessage {
+          try {
+            val url = siteUrl + "?s=" + chatCookies.get("session_id") +
+              "&app=shoutbox&module=ajax&section=coreAjax" +
+              "&secure_key=" + secureHash + "&type=submit" +
+              (if (lastMsgId.isEmpty) "" else "&lastid=" + lastMsgId)
+
+            Log i(TAG, "Post new message to " + url)
+            val doc = Jsoup.connect(url).timeout(getTimeout)
+              .data("shout", text).cookies(chatCookies).post()
+
+            val body = doc.body.html
+            Log i(TAG, "New message are posted")
+            PostResult(success = true)
+
+          } catch {
+            case e: java.net.SocketTimeoutException =>
+              Log w(TAG, "Timeout on post new message")
+              PostResult(success = false,
+                errorId = R.string.chat_error_network_timeout)
+
+            case e: org.jsoup.HttpStatusException =>
+              Log w(TAG, "Not connected to " + e.getUrl)
+              Log w(TAG, "Status code [" + e.getStatusCode + "]")
+              exitUser()
+              PostResult(success = false,
+                errorId = R.string.chat_error_network_bad_request)
+
+            case e: java.io.IOException =>
+              Log e(TAG, "Check for new messages failure, caused: \""
+                + e.getMessage + "\" by: " + e.getCause)
+              e printStackTrace()
+              exitUser()
+              PostResult(success = false,
+                errorId = R.string.chat_error_network)
+          }
+        }
       }
     }
   }
