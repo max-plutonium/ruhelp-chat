@@ -6,7 +6,9 @@ import android.net.{Uri, ConnectivityManager}
 import android.os.{HandlerThread, Looper, Handler}
 import android.preference.PreferenceManager
 import android.util.Log
-import android.widget.Toast
+import android.view.View
+import android.view.View.OnClickListener
+import android.widget.{TextView, Button, Toast}
 import org.jsoup.nodes.Element
 import org.jsoup.{Connection, Jsoup}
 
@@ -89,7 +91,9 @@ protected[chat] class Chat(private val activity: TypedActivity) {
   private class GuiHandler(private val context: Context) extends Handler {
     private val arrayList = collection.mutable.ArrayBuffer[Message]()
     private lazy val listAdapter = MessageAdapter(context, arrayList)
-    private lazy val lstChat = activity.findView(TR.lstChat)
+    private lazy val lstChat = activity findView TR.lstChat
+    private lazy val tvMessage = activity findView TR.tvMessage
+    private lazy val btnPost = activity findView TR.btnPost
     private var progressDialog: ProgressDialog = null
     private[Chat] var loginOrLogout = false
 
@@ -136,15 +140,20 @@ protected[chat] class Chat(private val activity: TypedActivity) {
       message.obj match {
         case StartChat =>
           lstChat setAdapter listAdapter
+          btnPost setOnClickListener new OnClickListener {
+            override def onClick(v: View): Unit =
+              workerHandler postMessage tvMessage.getText.toString
+          }
           if(!prefs.getString(getString(R.string.key_user_name), "").isEmpty)
             startCheckForUserEnter()
 
         case AlreadyEntered(result, errorId) =>
           stopProgress()
           loginOrLogout = false
-          if(result)
+          if(result) {
             Toast makeText(context, R.string.chat_user_login, Toast.LENGTH_LONG) show()
-          else if(-1 != errorId)
+            btnPost setEnabled true
+          } else if(-1 != errorId)
             Toast makeText(context, errorId, Toast.LENGTH_LONG) show()
           else {
             val notEnteredMessage = Message("not entered",
@@ -182,6 +191,7 @@ protected[chat] class Chat(private val activity: TypedActivity) {
         case PostResult(success, errorId) =>
           if(!success)
             Toast makeText(context, errorId, Toast.LENGTH_LONG) show()
+          else tvMessage.setText("", TextView.BufferType.NORMAL)
       }
     }
 
@@ -193,6 +203,7 @@ protected[chat] class Chat(private val activity: TypedActivity) {
           Toast makeText(context, getString(errorStringId)
             + "\n" + msg, Toast.LENGTH_LONG) show()
         case LoginResult(true, _, _) =>
+          btnPost setEnabled true
           Toast makeText(context, R.string.chat_user_login,
             Toast.LENGTH_LONG) show()
       }
