@@ -9,7 +9,7 @@ import android.util.Log
 import android.view.View
 import android.view.View.OnClickListener
 import android.widget.{TextView, Button, Toast}
-import org.jsoup.nodes.Element
+import org.jsoup.nodes.{Document, Element}
 import org.jsoup.{Connection, Jsoup}
 
 protected[chat] class Chat(private val activity: TypedActivity) {
@@ -86,7 +86,7 @@ protected[chat] class Chat(private val activity: TypedActivity) {
   private case object Logout extends GuiMessage
   private case class LogoutResult(result: Boolean) extends GuiMessage
   private case class Messages(seq: Seq[Message]) extends GuiMessage
-  private case class PostResult(success: Boolean, errorId: Int = -1) extends GuiMessage
+  private case class PostError(errorId: Int = -1) extends GuiMessage
 
   private class GuiHandler(private val context: Context) extends Handler {
     private val arrayList = collection.mutable.ArrayBuffer[Message]()
@@ -96,6 +96,7 @@ protected[chat] class Chat(private val activity: TypedActivity) {
     private lazy val btnPost = activity findView TR.btnPost
     private var progressDialog: ProgressDialog = null
     private[Chat] var loginOrLogout = false
+    private var messageArePosted = false
 
     def sendMessage(msg: GuiMessage) = super.sendMessage(obtainMessage(1, msg))
 
@@ -141,8 +142,11 @@ protected[chat] class Chat(private val activity: TypedActivity) {
         case StartChat =>
           lstChat setAdapter listAdapter
           btnPost setOnClickListener new OnClickListener {
-            override def onClick(v: View): Unit =
+            override def onClick(v: View): Unit = {
               workerHandler postMessage tvMessage.getText.toString
+              v setEnabled false
+              messageArePosted = true
+            }
           }
           if(!prefs.getString(getString(R.string.key_user_name), "").isEmpty)
             startCheckForUserEnter()
@@ -181,17 +185,23 @@ protected[chat] class Chat(private val activity: TypedActivity) {
           stopProgress()
           Toast makeText(context, if(result) R.string.chat_user_logout
             else R.string.chat_error_network, Toast.LENGTH_LONG) show()
+          if(result)
+            btnPost setEnabled false
           loginOrLogout = false
 
         case Messages(seq) =>
           arrayList ++= seq
           listAdapter notifyDataSetChanged()
           lstChat smoothScrollToPosition listAdapter.getCount
+          if(messageArePosted) {
+            messageArePosted = false
+            btnPost setEnabled true
+            tvMessage.setText("", TextView.BufferType.NORMAL)
+          }
 
-        case PostResult(success, errorId) =>
-          if(!success)
-            Toast makeText(context, errorId, Toast.LENGTH_LONG) show()
-          else tvMessage.setText("", TextView.BufferType.NORMAL)
+        case PostError(errorId) =>
+          btnPost setEnabled true
+          Toast makeText(context, errorId, Toast.LENGTH_LONG) show()
       }
     }
 
@@ -323,6 +333,22 @@ protected[chat] class Chat(private val activity: TypedActivity) {
 
     private final def publishProgress(msg: String) =
       guiHandler sendMessage new UpdateProgress(msg)
+
+    private final def extractMessages(doc: Document) = {
+      val spans = doc getElementsByTag "span" toArray new Array[Element](0)
+      val script = doc getElementsByAttributeValue("type", "text/javascript") get 0
+
+      // Все числа в скрипте - номера сообщений
+      val ids = "(\\d+)".r.findAllIn(script.html).toIndexedSeq
+      val names = spans filter (!_.getElementsByAttributeValue("itemprop", "name").isEmpty)
+      val timestamps = spans filter (!_.getElementsByAttributeValue("class", "right desc").isEmpty)
+      val messages = spans filter (!_.getElementsByAttributeValue("class", "shoutbox_text").isEmpty)
+
+      assert((ids.size == names.size) && (names.size == timestamps.size) && (timestamps.size == messages.size))
+      (0 until names.size) map { case i =>
+        Message(ids(i), names(i).html, timestamps(i).html, messages(i).html)
+      }
+    }
 
     val performLogin = new Runnable {
       override def run(): Unit =
@@ -459,7 +485,7 @@ protected[chat] class Chat(private val activity: TypedActivity) {
 
     var checkForNewMessages: Runnable = null
 
-    private final class CheckForNewMessages extends Runnable {
+    private class CheckForNewMessages extends Runnable {
       override def run(): Unit = {
         var interval = getMsgInterval
         try {
@@ -508,22 +534,10 @@ protected[chat] class Chat(private val activity: TypedActivity) {
           return None
         }
 
-        val spans = doc getElementsByTag "span" toArray new Array[Element](0)
-        val script = doc getElementsByAttributeValue("type", "text/javascript") get 0
-
-        // Все числа в скрипте - номера сообщений
-        val ids = "(\\d+)".r.findAllIn(script.html).toIndexedSeq
-        val names = spans filter (!_.getElementsByAttributeValue("itemprop", "name").isEmpty)
-        val timestamps = spans filter (!_.getElementsByAttributeValue("class", "right desc").isEmpty)
-        val messages = spans filter (!_.getElementsByAttributeValue("class", "shoutbox_text").isEmpty)
-
-        assert((ids.size == names.size) && (names.size == timestamps.size) && (timestamps.size == messages.size))
-        val shouts = for (i <- 0 until names.size)
-          yield Message(ids(i), names(i).html, timestamps(i).html, messages(i).html)
-
-        lastMsgId = ids.last
-        Log i(TAG, "Obtained " + shouts.size + " new messages")
-        Some(Messages(shouts))
+        val messages = extractMessages(doc)
+        lastMsgId = messages.last.id
+        Log i(TAG, "Obtained " + messages.size + " new messages")
+        Some(Messages(messages))
       }
     }
 
@@ -540,30 +554,28 @@ protected[chat] class Chat(private val activity: TypedActivity) {
             val doc = Jsoup.connect(url).timeout(getTimeout)
               .data("shout", text).cookies(chatCookies).post()
 
-            val body = doc.body.html
-            Log i(TAG, "New message are posted")
-            PostResult(success = true)
+            val messages = extractMessages(doc)
+            lastMsgId = messages.last.id
+            Log i(TAG, "New message are posted, obtained: " + (messages.size - 1))
+            Messages(messages)
 
           } catch {
             case e: java.net.SocketTimeoutException =>
               Log w(TAG, "Timeout on post new message")
-              PostResult(success = false,
-                errorId = R.string.chat_error_network_timeout)
+              PostError(R.string.chat_error_network_timeout)
 
             case e: org.jsoup.HttpStatusException =>
               Log w(TAG, "Not connected to " + e.getUrl)
               Log w(TAG, "Status code [" + e.getStatusCode + "]")
               exitUser()
-              PostResult(success = false,
-                errorId = R.string.chat_error_network_bad_request)
+              PostError(R.string.chat_error_network_bad_request)
 
             case e: java.io.IOException =>
               Log e(TAG, "Check for new messages failure, caused: \""
                 + e.getMessage + "\" by: " + e.getCause)
               e printStackTrace()
               exitUser()
-              PostResult(success = false,
-                errorId = R.string.chat_error_network)
+              PostError(R.string.chat_error_network)
           }
         }
       }
