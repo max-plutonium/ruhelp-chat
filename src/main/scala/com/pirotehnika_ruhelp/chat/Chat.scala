@@ -8,14 +8,13 @@ import android.preference.PreferenceManager
 import android.util.Log
 import android.view.View
 import android.view.View.OnClickListener
-import android.widget.{TextView, Button, Toast}
+import android.view.inputmethod.InputMethodManager
+import android.widget.{TextView, Toast}
 import org.jsoup.nodes.{Document, Element}
 import org.jsoup.{Connection, Jsoup}
 
 protected[chat] class Chat(private val activity: TypedActivity) {
-
   private var userEntered = false
-
   private lazy val prefs = PreferenceManager getDefaultSharedPreferences activity
   private val guiHandler: GuiHandler = new GuiHandler(activity)
   private var workerHandler: NetworkHandler = null
@@ -136,6 +135,12 @@ protected[chat] class Chat(private val activity: TypedActivity) {
         sendMessage(StartChat)
     }
 
+    private final def hideKeyboard() = {
+      val imManager = context.getSystemService(
+        Context.INPUT_METHOD_SERVICE).asInstanceOf[InputMethodManager]
+      imManager.hideSoftInputFromWindow(tvMessage.getWindowToken, 0)
+    }
+
     override def handleMessage(message: android.os.Message): Unit = {
       super.handleMessage(message)
       message.obj match {
@@ -143,9 +148,13 @@ protected[chat] class Chat(private val activity: TypedActivity) {
           lstChat setAdapter listAdapter
           btnPost setOnClickListener new OnClickListener {
             override def onClick(v: View): Unit = {
-              workerHandler postMessage tvMessage.getText.toString
-              v setEnabled false
-              messagePending = true
+              val text = tvMessage.getText.toString
+              if(!text.trim.isEmpty) {
+                workerHandler postMessage text
+                v setEnabled false
+                messagePending = true
+              }
+              hideKeyboard()
             }
           }
           if(!prefs.getString(getString(R.string.key_user_name), "").isEmpty)

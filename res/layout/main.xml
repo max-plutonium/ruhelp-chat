@@ -16,8 +16,9 @@
                 android:id="@+id/lstChat"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:textFilterEnabled="false">
-        </ListView>
+                android:textFilterEnabled="false"
+                android:focusable="true"
+                android:descendantFocusability="beforeDescendants" />
     </LinearLayout>
 
     <RelativeLayout
@@ -36,12 +37,14 @@
                 android:layout_toLeftOf="@+id/btnPost"
                 android:layout_centerVertical="true"
                 android:inputType="textMultiLine"
-                android:maxLines="5" />
+                android:maxLines="5"
+                android:imeOptions="flagNoExtractUi" />
         <Button
                 android:id="@+id/btnPost"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_alignParentRight="true"
+                android:enabled="false"
                 android:text="@string/post_button_text"
                 android:focusable="true"
                 android:layout_centerVertical="true" />
