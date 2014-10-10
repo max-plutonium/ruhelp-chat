@@ -86,7 +86,7 @@ protected[chat] class Chat(private val activity: TypedActivity) {
   private case object Logout extends GuiMessage
   private case class LogoutResult(result: Boolean) extends GuiMessage
   private case class Messages(seq: Seq[Message]) extends GuiMessage
-  private case class PostError(errorId: Int = -1) extends GuiMessage
+  private case class PostError(errorStringId: Int) extends GuiMessage
 
   private class GuiHandler(private val context: Context) extends Handler {
     private val arrayList = collection.mutable.ArrayBuffer[Message]()
@@ -96,7 +96,7 @@ protected[chat] class Chat(private val activity: TypedActivity) {
     private lazy val btnPost = activity findView TR.btnPost
     private var progressDialog: ProgressDialog = null
     private[Chat] var loginOrLogout = false
-    private var messageArePosted = false
+    private var messagePending = false
 
     def sendMessage(msg: GuiMessage) = super.sendMessage(obtainMessage(1, msg))
 
@@ -145,7 +145,7 @@ protected[chat] class Chat(private val activity: TypedActivity) {
             override def onClick(v: View): Unit = {
               workerHandler postMessage tvMessage.getText.toString
               v setEnabled false
-              messageArePosted = true
+              messagePending = true
             }
           }
           if(!prefs.getString(getString(R.string.key_user_name), "").isEmpty)
@@ -193,8 +193,8 @@ protected[chat] class Chat(private val activity: TypedActivity) {
           arrayList ++= seq
           listAdapter notifyDataSetChanged()
           lstChat smoothScrollToPosition listAdapter.getCount
-          if(messageArePosted) {
-            messageArePosted = false
+          if(messagePending) {
+            messagePending = false
             btnPost setEnabled true
             tvMessage.setText("", TextView.BufferType.NORMAL)
           }
