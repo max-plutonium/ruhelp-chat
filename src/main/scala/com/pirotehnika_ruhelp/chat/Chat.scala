@@ -7,7 +7,6 @@ import android.os.{HandlerThread, Looper, Handler}
 import android.preference.PreferenceManager
 import android.util.Log
 import android.view.View
-import android.view.View.OnClickListener
 import android.view.inputmethod.InputMethodManager
 import android.widget.{TextView, Toast}
 import org.jsoup.nodes.{Document, Element}
@@ -27,6 +26,7 @@ protected[chat] class Chat(private val activity: TypedActivity) {
   workerThread start()
 
   import Chat._
+  import implicits.ListenerBuilders._
 
   final def start() = guiHandler sendMessage StartChat
   final def login() = guiHandler sendMessage Login
@@ -135,7 +135,7 @@ protected[chat] class Chat(private val activity: TypedActivity) {
         sendMessage(StartChat)
     }
 
-    private final def hideKeyboard() = {
+    private final def hideKeyboard(): Unit = {
       val imManager = context.getSystemService(
         Context.INPUT_METHOD_SERVICE).asInstanceOf[InputMethodManager]
       imManager.hideSoftInputFromWindow(tvMessage.getWindowToken, 0)
@@ -146,17 +146,15 @@ protected[chat] class Chat(private val activity: TypedActivity) {
       message.obj match {
         case StartChat =>
           lstChat setAdapter listAdapter
-          btnPost setOnClickListener new OnClickListener {
-            override def onClick(v: View): Unit = {
+          btnPost setOnClickListener((v: View) => {
               val text = tvMessage.getText.toString
-              if(!text.trim.isEmpty) {
+              if (!text.trim.isEmpty) {
                 workerHandler postMessage text
                 v setEnabled false
                 messagePending = true
               }
               hideKeyboard()
-            }
-          }
+            })
           if(!prefs.getString(getString(R.string.key_user_name), "").isEmpty)
             startCheckForUserEnter()
 

@@ -9,6 +9,7 @@ import android.widget._
 
 class MainActivity extends TypedActivity {
   import MainActivity._
+  import implicits.ListenerBuilders._
   private val chat = new Chat(this)
 
   override protected def onCreate(savedInstanceState: Bundle) = {
@@ -26,47 +27,32 @@ class MainActivity extends TypedActivity {
     super.onCreateOptionsMenu(menu)
   }
 
-  private def getLoginListener: MenuItem.OnMenuItemClickListener = {
+  private def getLoginListener: MenuItem.OnMenuItemClickListener =
     if(chat.isNetworkAvailable)
       if(chat.isUserEntered)
-        new MenuItem.OnMenuItemClickListener {
-          override def onMenuItemClick(item: MenuItem): Boolean = {
-            chat logout()
-            true
-          }
-        }
-      else new MenuItem.OnMenuItemClickListener {
-          override def onMenuItemClick(item: MenuItem): Boolean = {
-            chat login()
-            true
-          }
-        }
+        (item: MenuItem) => { chat logout(); true }
+      else
+        (item: MenuItem) => { chat login(); true }
 
     // Нет сети
-    else new MenuItem.OnMenuItemClickListener {
-        override def onMenuItemClick(item: MenuItem): Boolean = {
-          val builder = new AlertDialog.Builder(MainActivity.this)
-          builder setTitle R.string.chat_login_alert_title
-          builder setMessage R.string.chat_login_alert_msg
+    else (item: MenuItem) => {
+        val builder = new AlertDialog.Builder(this)
+        builder setTitle R.string.chat_login_alert_title
+        builder setMessage R.string.chat_login_alert_msg
 
-          builder.setPositiveButton(R.string.chat_login_alert_yes,
-            new DialogInterface.OnClickListener {
-              override def onClick(dialog: DialogInterface, which: Int) =
-                startActivity(new Intent(Settings.ACTION_SETTINGS))
-            })
+        builder.setPositiveButton(R.string.chat_login_alert_yes,
+          (dialog: DialogInterface, which: Int) =>
+            startActivity(new Intent(Settings.ACTION_SETTINGS)))
 
-          builder setNegativeButton(R.string.chat_login_alert_no,
-            new DialogInterface.OnClickListener {
-              override def onClick(dialog: DialogInterface, which: Int) =
-                Toast makeText(MainActivity.this,
-                  R.string.chat_login_alert_on_cancel, Toast.LENGTH_LONG) show()
-            })
+        builder setNegativeButton(R.string.chat_login_alert_no,
+          (dialog: DialogInterface, which: Int) =>
+            Toast makeText(MainActivity.this,
+              R.string.chat_login_alert_on_cancel,
+              Toast.LENGTH_LONG) show())
 
-          builder create() show()
-          true
-        }
+        builder create() show()
+        true
       }
-  }
 
   override def onPrepareOptionsMenu(menu: Menu): Boolean = {
     val mi = menu findItem R.id.menu_signing
