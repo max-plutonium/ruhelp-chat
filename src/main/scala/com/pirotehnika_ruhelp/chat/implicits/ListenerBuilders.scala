@@ -1,4 +1,5 @@
-package com.pirotehnika_ruhelp.chat.implicits
+package com.pirotehnika_ruhelp.chat
+package implicits
 
 import android.content.DialogInterface
 import android.content.DialogInterface.OnClickListener

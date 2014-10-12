@@ -10,7 +10,7 @@ import android.widget._
 class MainActivity extends TypedActivity {
   import MainActivity._
   import implicits.ListenerBuilders._
-  private val chat = new Chat(this)
+  private val chat = Chat(this)
 
   override protected def onCreate(savedInstanceState: Bundle) = {
     super.onCreate(savedInstanceState)
