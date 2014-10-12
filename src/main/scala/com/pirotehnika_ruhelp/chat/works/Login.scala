@@ -14,10 +14,9 @@ protected[chat] trait Login extends NetworkWorker {
     private final def publishProgress(msg: String) =
       guiHandler sendMessage new UpdateProgress(msg)
 
-    override def run(): Unit =
-      guiHandler sendMessage doLogin(enterUrl, getTimeout)
+    override def run(): Unit = doLogin(enterUrl, getTimeout)
 
-    private def doLogin(url: String, timeout: Int): MessageForGui = {
+    private def doLogin(url: String, timeout: Int) = {
       val name = prefs getString(getString(R.string.key_user_name), "")
       val pass = prefs getString(getString(R.string.key_user_pass), "")
       val remember = prefs getBoolean(getString(R.string.key_user_remember), false)
@@ -71,9 +70,7 @@ protected[chat] trait Login extends NetworkWorker {
           filter { _.attr("class").equals(getString(R.string.key_form_login_error_class))
         } foreach { res => val msg = res.text
           Log w(TAG, "Login failure, caused: " + msg)
-          authKey = ""; chatCookies.clear()
-          return LoginResult(success = false,
-            errorStringId = R.string.chat_error_login, errorMsg = msg)
+          exitUser(R.string.chat_error_login, errorMsg = msg)
         }
 
         // Поиск ссылки для выхода
@@ -85,32 +82,24 @@ protected[chat] trait Login extends NetworkWorker {
         secureHash = Uri parse link getQueryParameter "k"
 
         enterUser()
-        publishProgress("Login success")
         Log i(TAG, "Login successful")
-        LoginResult(success = true)
 
       } catch {
         case e: java.net.SocketTimeoutException =>
           Log w(TAG, "Timeout on login")
-          authKey = ""
-          LoginResult(success = false,
-            errorStringId = R.string.chat_error_network_timeout)
+          exitUser(R.string.chat_error_network_timeout)
 
         case e: java.io.IOException =>
           Log e(TAG, "Login failure, caused: \""
             + e.getMessage + "\" by: " + e.getCause)
           e printStackTrace()
-          authKey = ""
-          LoginResult(success = false,
-            errorStringId = R.string.chat_error_network,
+          exitUser(R.string.chat_error_network,
             errorMsg = e.getMessage)
 
         case e: IndexOutOfBoundsException =>
           Log e(TAG, "Login failure, caused: " + e.getMessage)
           e printStackTrace()
-          authKey = ""; chatCookies.clear()
-          LoginResult(success = false,
-            errorStringId = R.string.chat_error_user)
+          exitUser(R.string.chat_error_user)
       }
     }
   }

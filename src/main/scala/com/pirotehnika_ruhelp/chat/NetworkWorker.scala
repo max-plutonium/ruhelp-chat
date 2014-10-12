@@ -1,6 +1,7 @@
 package com.pirotehnika_ruhelp.chat
 
 import android.os.{Handler, HandlerThread}
+import android.util.Log
 
 protected[chat] trait NetworkWorker { this: Chat =>
   protected val siteUrl = "http://pirotehnika-ruhelp.com/index.php"
@@ -11,6 +12,7 @@ protected[chat] trait NetworkWorker { this: Chat =>
   protected var secureHash = ""
   protected var chatCookies: java.util.Map[String, String] = null
   protected var lastMsgId = ""
+  protected var inAutoLogin = false
 
   private[chat] var workerHandler: Handler = null
   private val workerThread = new HandlerThread("Chat Worker") {
@@ -22,19 +24,39 @@ protected[chat] trait NetworkWorker { this: Chat =>
 
   protected[this] def enterUser(): Unit = {
     saveCookies()
+    inAutoLogin = false
     userEntered = true
+    Log i(getClass.getName, "Login successful because cookies still valid")
+    val enteredMessage = Message("entered",
+      getString(R.string.key_system_user), "",
+      getString(R.string.chat_user_login))
+    guiHandler sendMessage Messages(Seq(enteredMessage))
   }
 
-  protected[this] def exitUser(): Unit = {
+  protected[this] def exitUser(errorId: Int = -1, errorMsg: String = ""): Unit = {
     authKey = ""; secureHash = ""; chatCookies.clear()
     saveCookies()
+    inAutoLogin = false
     userEntered = false
+    Log i(getClass.getName, "User is not entered because cookies are invalid")
+    val notEnteredMessage = Message("not entered",
+      getString(R.string.key_system_user), "",
+      if(-1 == errorId) getString(R.string.chat_user_logout)
+        else getString(errorId) +
+        (if(errorMsg.isEmpty) "" else "\n" + errorMsg))
+    guiHandler sendMessage Messages(Seq(notEnteredMessage))
   }
 
-  protected val checkForEnter: Runnable
+  protected final def tryAutoLogin() = {
+    restoreCookies()
+    workerHandler post checkMessages
+    inAutoLogin = true
+  }
+
   protected val performLogin: Runnable
   protected val performLogout: Runnable
-  protected val checkForNewMessages: Runnable
+  protected val checkMessages: Runnable
+  protected val checkMembers: Runnable
   protected def postMessage(text: String): Unit
 
   protected[this] final def getMsgInterval = {
@@ -77,7 +99,7 @@ protected[chat] trait NetworkWorker { this: Chat =>
     val script = doc getElementsByAttributeValue("type", "text/javascript") get 0
 
     // Все числа в скрипте - номера сообщений
-    val ids = "(\\d+)".r.findAllIn(script.html).toIndexedSeq
+    val ids = "\\d+".r.findAllIn(script.html).toIndexedSeq
     val names = spans filter (!_.getElementsByAttributeValue("itemprop", "name").isEmpty)
     val timestamps = spans filter (!_.getElementsByAttributeValue("class", "right desc").isEmpty)
     val messages = spans filter (!_.getElementsByAttributeValue("class", "shoutbox_text").isEmpty)

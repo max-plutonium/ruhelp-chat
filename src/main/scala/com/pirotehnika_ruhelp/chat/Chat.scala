@@ -19,8 +19,19 @@ protected[chat] abstract class Chat
   import implicits.ListenerBuilders._
 
   final def start() = guiHandler sendMessage StartChat
-  final def login() = guiHandler sendMessage Login
-  final def logout() = guiHandler sendMessage Logout
+
+  final def login() = {
+    guiHandler startProgress(R.string.chat_login_progress_title, 5)
+    workerHandler post performLogin
+    guiHandler.loginOrLogout = true
+  }
+
+  final def logout() = {
+    guiHandler startProgress(R.string.chat_logout_progress_title, 2)
+    workerHandler post performLogout
+    guiHandler.loginOrLogout = true
+  }
+
   final def isUserEntered = userEntered
   final def isLoginOrLogout = guiHandler.loginOrLogout
 
@@ -56,14 +67,10 @@ protected[chat] abstract class Chat
 
   private[chat] sealed trait MessageForGui
   private[chat] case object StartChat extends MessageForGui
-  private[chat] case class AlreadyEntered(result: Boolean, errorId: Int = -1) extends MessageForGui
-  private[chat] case object Login extends MessageForGui
   private[chat] case class UpdateProgress(message: String) extends MessageForGui
-  private[chat] case class LoginResult(success: Boolean,
-    errorStringId: Int = -1, errorMsg: String = "") extends MessageForGui
-  private[chat] case object Logout extends MessageForGui
-  private[chat] case class LogoutResult(result: Boolean) extends MessageForGui
   private[chat] case class Messages(seq: Seq[Message]) extends MessageForGui
+  private[chat] case class Members(total: Int, guests: Int,
+    members: Int, anons: Int, seq: Option[Seq[Member]]) extends MessageForGui
   private[chat] case class PostError(errorStringId: Int) extends MessageForGui
 
   private[chat] class GuiHandler(private val context: Context) extends Handler {
@@ -78,7 +85,7 @@ protected[chat] abstract class Chat
 
     def sendMessage(msg: MessageForGui) = super.sendMessage(obtainMessage(1, msg))
 
-    private final def startProgress(titleId: Int, steps: Int) = {
+    final def startProgress(titleId: Int, steps: Int) = {
       progressDialog = new ProgressDialog(context)
       progressDialog setTitle titleId
       progressDialog setMessage ""
@@ -105,9 +112,9 @@ protected[chat] abstract class Chat
       progressDialog = null
     }
 
-    private final def startCheckForUserEnter() = {
+    private final def startAutoLogin() = {
       if(workerHandler ne null) {
-        workerHandler post checkForEnter
+        tryAutoLogin()
         startSpinnerProgress(getString(R.string.chat_login_progress_title))
         loginOrLogout = true
       } else
@@ -135,47 +142,23 @@ protected[chat] abstract class Chat
               hideKeyboard()
             })
           if(!prefs.getString(getString(R.string.key_user_name), "").isEmpty)
-            startCheckForUserEnter()
+            startAutoLogin()
 
-        case AlreadyEntered(result, errorId) =>
-          stopProgress()
-          loginOrLogout = false
-          if(result) {
-            Toast makeText(context, R.string.chat_user_login, Toast.LENGTH_LONG) show()
-            btnPost setEnabled true
-          } else if(-1 != errorId)
-            Toast makeText(context, errorId, Toast.LENGTH_LONG) show()
-          else {
-            val notEnteredMessage = Message("not entered",
-              getString(R.string.key_system_user), "",
-              getString(R.string.chat_user_not_entered))
-            sendMessage(Messages(Seq(notEnteredMessage)))
-          }
+        case UpdateProgress(msg) => updateProgress(msg)
 
-        case Login =>
-          startProgress(R.string.chat_login_progress_title, 5)
-          workerHandler post performLogin
-          loginOrLogout = true
-        case UpdateProgress(msg) =>
-          updateProgress(msg)
-        case result: LoginResult =>
-          stopProgress()
-          onLoginResult(result)
-          loginOrLogout = false
-
-        case Logout =>
-          startProgress(R.string.chat_logout_progress_title, 2)
-          workerHandler post performLogout
-          loginOrLogout = true
-        case LogoutResult(result) =>
-          stopProgress()
-          Toast makeText(context, if(result) R.string.chat_user_logout
-            else R.string.chat_error_network, Toast.LENGTH_LONG) show()
-          if(result)
-            btnPost setEnabled false
-          loginOrLogout = false
+        case Members(total, guests, members, anons, seq) =>
+          val r = 0
+          r + 2
 
         case Messages(seq) =>
+          if(loginOrLogout) {
+            if("entered" equals seq(0).id)
+              btnPost setEnabled true
+            else if("not entered" equals seq(0).id)
+              btnPost setEnabled false
+            stopProgress()
+            loginOrLogout = false
+          }
           arrayList ++= seq
           listAdapter notifyDataSetChanged()
           lstChat smoothScrollToPosition listAdapter.getCount
@@ -190,20 +173,6 @@ protected[chat] abstract class Chat
           Toast makeText(context, errorId, Toast.LENGTH_LONG) show()
       }
     }
-
-    private def onLoginResult(result: LoginResult) = {
-      result match {
-        case LoginResult(false, errorStringId, "") if -1 != errorStringId =>
-          Toast makeText(context, errorStringId, Toast.LENGTH_LONG) show()
-        case LoginResult(false, errorStringId, msg) if -1 != errorStringId =>
-          Toast makeText(context, getString(errorStringId)
-            + "\n" + msg, Toast.LENGTH_LONG) show()
-        case LoginResult(true, _, _) =>
-          btnPost setEnabled true
-          Toast makeText(context, R.string.chat_user_login,
-            Toast.LENGTH_LONG) show()
-      }
-    }
   }
 }
 
@@ -212,6 +181,6 @@ protected[chat] object Chat {
   private[Chat] val TAG = classOf[Chat].getCanonicalName
   private[chat] def apply(activity: TypedActivity): Chat =
     new Chat(activity) with Login with Logout
-      with CheckForEnter with ObtainMessages
+      with ObtainMembers with ObtainMessages
       with PostMessage
 }

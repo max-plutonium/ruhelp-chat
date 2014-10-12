@@ -12,10 +12,9 @@ protected[chat] trait Logout extends NetworkWorker {
     private final def publishProgress(msg: String) =
       guiHandler sendMessage new UpdateProgress(msg)
 
-    override def run(): Unit =
-      guiHandler sendMessage doLogout(enterUrl, getTimeout)
+    override def run(): Unit = doLogout(enterUrl, getTimeout)
 
-    private def doLogout(baseUrl: String, timeout: Int): MessageForGui = {
+    private def doLogout(baseUrl: String, timeout: Int) = {
       val url = baseUrl + "&do=logout&k=" + secureHash
 
       try {
@@ -30,14 +29,11 @@ protected[chat] trait Logout extends NetworkWorker {
         Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
 
         exitUser()
-        publishProgress("Logout success")
         Log i(TAG, "Logout successful")
-        LogoutResult(result = true)
 
-      } catch { case e: java.io.IOException =>
-        Log e(TAG, "Logout failure, caused: " + e.getMessage)
-        e printStackTrace()
-        LogoutResult(result = false)
+      } catch { case e: java.net.SocketTimeoutException =>
+        Log w(TAG, "Timeout on logout")
+        exitUser(R.string.chat_error_network_timeout)
       }
     }
   }

@@ -9,16 +9,16 @@ protected[chat] trait ObtainMessages extends NetworkWorker {
   private val TAG = classOf[ObtainMessages].getName
 
   override protected def enterUser() = {
-    workerHandler post checkForNewMessages
+    workerHandler post checkMessages
     super.enterUser()
   }
 
-  override protected def exitUser() = {
-    workerHandler removeCallbacks checkForNewMessages
-    super.exitUser()
+  override protected def exitUser(errorId: Int = -1, errorMsg: String = "") = {
+    workerHandler removeCallbacks checkMessages
+    super.exitUser(errorId, errorMsg)
   }
 
-  override protected final val checkForNewMessages: Runnable = new Runnable {
+  override protected final val checkMessages: Runnable = new Runnable {
     override def run(): Unit = {
       var interval = getMsgInterval
 
@@ -35,7 +35,7 @@ protected[chat] trait ObtainMessages extends NetworkWorker {
           Log e(TAG, "Check for new messages failure, caused: \""
             + e.getMessage + "\" by: " + e.getCause)
           e printStackTrace()
-          exitUser()
+          exitUser(R.string.chat_error_network)
 
       } finally if(userEntered) {
         workerHandler postDelayed(this, interval)
@@ -57,17 +57,16 @@ protected[chat] trait ObtainMessages extends NetworkWorker {
 
       val doc = resp parse(); val body = doc.body.html
       if (body equals getString(R.string.key_body_no_permission)) {
-        Log e(TAG, "Obtained no-permission error")
-        exitUser()
-        val noPermMessage = Message(getString(R.string.key_body_no_permission),
-          getString(R.string.key_system_user), "",
-          getString(R.string.chat_error_no_permission))
-        return Some(Messages(Seq(noPermMessage)))
+        exitUser(R.string.chat_user_not_entered)
+        return None
+
       } else if (body.isEmpty) {
         Log i(TAG, "There are no new messages on server")
+        if(inAutoLogin) enterUser()
         return None
       }
 
+      if(inAutoLogin) enterUser()
       val messages = extractMessages(doc)
       lastMsgId = messages.last.id
       Log i(TAG, "Obtained " + messages.size + " new messages")
