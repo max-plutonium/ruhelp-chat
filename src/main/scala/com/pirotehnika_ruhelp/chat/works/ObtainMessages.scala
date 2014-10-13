@@ -2,7 +2,7 @@ package com.pirotehnika_ruhelp.chat
 package works
 
 import android.util.Log
-import org.jsoup.{Connection, Jsoup}
+import org.jsoup.Jsoup
 
 protected[chat] trait ObtainMessages extends NetworkWorker {
   this: Chat =>
@@ -19,20 +19,23 @@ protected[chat] trait ObtainMessages extends NetworkWorker {
   }
 
   override protected final val checkMessages: Runnable = new Runnable {
-    override def run(): Unit = {
-      var interval = getMsgInterval
-
+    override def run() = { var interval = getMsgInterval
       try {
         doRequest(getTimeout) foreach { messages =>
           guiHandler sendMessage messages }
 
       } catch {
         case e: java.net.SocketTimeoutException =>
-          Log w(TAG, "Timeout on request new messages")
+          Log w(TAG, "Timeout on obtaining new messages")
           interval = 1000
 
+        case e: org.jsoup.HttpStatusException =>
+          Log e(TAG, "Not connected to " + e.getUrl)
+          Log e(TAG, "Status code [" + e.getStatusCode + "]")
+          exitUser(R.string.chat_error_network_bad_request)
+
         case e: java.io.IOException =>
-          Log e(TAG, "Check for new messages failure, caused: \""
+          Log e(TAG, "Obtaining new messages fails, cause: \""
             + e.getMessage + "\" by: " + e.getCause)
           e printStackTrace()
           exitUser(R.string.chat_error_network)
@@ -48,25 +51,35 @@ protected[chat] trait ObtainMessages extends NetworkWorker {
         "&secure_key=" + secureHash + "&type=getShouts" +
         (if (lastMsgId.isEmpty) "" else "&lastid=" + lastMsgId)
 
-      Log i(TAG, "Request for new messages from " + url)
-      val resp = Jsoup.connect(url).cookies(chatCookies)
-        .method(Connection.Method.GET).timeout(timeout).execute()
+      Log d(TAG, "Obtaining new messages from " + url)
+      val doc = Jsoup.connect(url).cookies(chatCookies)
+        .timeout(timeout).ignoreContentType(true).get()
 
-      Log i(TAG, "Connected to " + url)
-      Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
-
-      val doc = resp parse(); val body = doc.body.html
+      val body = doc.body.html
       if (body equals getString(R.string.key_body_no_permission)) {
-        exitUser(R.string.chat_user_not_entered)
+        if(inAutoLogin) {
+          Log i(TAG, "User is not entered because cookies are invalid")
+          exitUser(R.string.chat_user_not_entered)
+        } else {
+          Log e(TAG, "Obtained no-permission error")
+          exitUser(R.string.chat_error_no_permission)
+        }
         return None
 
       } else if (body.isEmpty) {
         Log i(TAG, "There are no new messages on server")
-        if(inAutoLogin) enterUser()
+        if(inAutoLogin) {
+          Log i(TAG, "Login successful because cookies still valid")
+          enterUser()
+        }
         return None
       }
 
-      if(inAutoLogin) enterUser()
+      if(inAutoLogin) {
+        Log i(TAG, "Login successful because cookies still valid")
+        enterUser()
+      }
+
       val messages = extractMessages(doc)
       lastMsgId = messages.last.id
       Log i(TAG, "Obtained " + messages.size + " new messages")
