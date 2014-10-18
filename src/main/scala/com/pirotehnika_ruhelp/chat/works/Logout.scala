@@ -31,9 +31,13 @@ protected[chat] trait Logout extends NetworkWorker {
         exitUser()
         Log i(TAG, "Logout successful")
 
-      } catch { case e: java.net.SocketTimeoutException =>
-        Log w(TAG, "Timeout on logout")
-        exitUser(R.string.chat_error_network_timeout)
+      } catch {
+        case e: java.net.SocketTimeoutException =>
+          Log w(TAG, "Timeout on logout")
+          exitUser(R.string.chat_error_network_timeout)
+
+        case e: java.io.IOException =>
+          handleNetworkError(TAG, "Logout", e)
       }
     }
   }

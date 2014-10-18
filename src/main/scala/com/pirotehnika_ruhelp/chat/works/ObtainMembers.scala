@@ -22,24 +22,15 @@ protected[chat] trait ObtainMembers extends NetworkWorker {
     override def run() = { var interval = getMsgInterval * 3
       try {
         doRequest(getTimeout) foreach { members =>
-          guiHandler sendMessage members
-        }
+          guiHandler sendMessage members }
 
       } catch {
         case e: java.net.SocketTimeoutException =>
           Log w(TAG, "Timeout on obtaining members")
           interval = 1000
 
-        case e: org.jsoup.HttpStatusException =>
-          Log e(TAG, "Not connected to " + e.getUrl)
-          Log e(TAG, "Status code [" + e.getStatusCode + "]")
-          exitUser(R.string.chat_error_network_bad_request)
-
         case e: java.io.IOException =>
-          Log e(TAG, "Obtaining members fails, cause: \""
-            + e.getMessage + "\" by: " + e.getCause)
-          e printStackTrace()
-          exitUser(R.string.chat_error_network)
+          handleNetworkError(TAG, "Obtaining members", e)
 
       } finally if(userEntered) {
         workerHandler postDelayed(this, interval)

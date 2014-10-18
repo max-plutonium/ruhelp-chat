@@ -21,12 +21,15 @@ protected[chat] trait PostMessage extends NetworkWorker {
             (if (lastMsgId.isEmpty) "" else "&lastid=" + lastMsgId)
 
           Log i(TAG, "Post new message to " + url)
-          val doc = Jsoup.connect(url).timeout(getTimeout)
-            .data("shout", text).cookies(chatCookies).post()
+          val doc = Jsoup.connect(url).cookies(chatCookies)
+            .data("shout", text).timeout(getTimeout).post()
 
           val messages = extractMessages(doc)
           lastMsgId = messages.last.id
-          Log i(TAG, "New message are posted, obtained: " + (messages.size - 1))
+
+          Log i(TAG, "New message has been posted" +
+            (if(1 == messages.size) "" else " with " +
+              (messages.size - 1) + " new messages"))
           Messages(messages)
 
         } catch {
@@ -34,17 +37,8 @@ protected[chat] trait PostMessage extends NetworkWorker {
             Log w(TAG, "Timeout on post new message")
             PostError(R.string.chat_error_network_timeout)
 
-          case e: org.jsoup.HttpStatusException =>
-            Log w(TAG, "Not connected to " + e.getUrl)
-            Log w(TAG, "Status code [" + e.getStatusCode + "]")
-            exitUser()
-            PostError(R.string.chat_error_network_bad_request)
-
           case e: java.io.IOException =>
-            Log e(TAG, "Check for new messages failure, caused: \""
-              + e.getMessage + "\" by: " + e.getCause)
-            e printStackTrace()
-            exitUser()
+            handleNetworkError(TAG, "Post message", e)
             PostError(R.string.chat_error_network)
         }
       }

@@ -8,8 +8,6 @@ version := "0.3"
 
 scalaVersion := "2.11.1"
 
-libraryDependencies += "org.jsoup" % "jsoup" % "1.7.3"
-
-versionName := Some("0.3")
-
-versionCode := Some(1)
+libraryDependencies ++= Seq(
+  "org.jsoup" % "jsoup" % "1.7.3"
+)

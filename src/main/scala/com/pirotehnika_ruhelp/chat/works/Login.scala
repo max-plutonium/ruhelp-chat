@@ -16,7 +16,7 @@ protected[chat] trait Login extends NetworkWorker {
 
     override def run(): Unit = doLogin(enterUrl, getTimeout)
 
-    private def doLogin(url: String, timeout: Int) = {
+    private def doLogin(url: String, timeout: Int): Unit = {
       val name = prefs getString(getString(R.string.key_user_name), "")
       val pass = prefs getString(getString(R.string.key_user_pass), "")
       val remember = prefs getBoolean(getString(R.string.key_user_remember), false)
@@ -25,10 +25,11 @@ protected[chat] trait Login extends NetworkWorker {
 
       try {
         publishProgress("Connect to forum...")
-        Log i(TAG, "Request for login info from " + url)
-        var resp = Jsoup.connect(url).timeout(timeout)
-          .userAgent(getUserAgent).cookies(chatCookies)
-          .method(Connection.Method.GET).execute()
+        Log i(TAG, "Obtain login form from " + url)
+
+        var resp = Jsoup.connect(url).cookies(chatCookies)
+          .userAgent(getUserAgent).method(Connection.Method.GET)
+          .timeout(timeout).execute()
 
         publishProgress("Connected. Parse login form...")
         Log i(TAG, "Connected to " + url)
@@ -71,6 +72,7 @@ protected[chat] trait Login extends NetworkWorker {
         } foreach { res => val msg = res.text
           Log w(TAG, "Login failure, caused: " + msg)
           exitUser(R.string.chat_error_login, errorMsg = msg)
+          return
         }
 
         // Поиск ссылки для выхода
@@ -90,14 +92,10 @@ protected[chat] trait Login extends NetworkWorker {
           exitUser(R.string.chat_error_network_timeout)
 
         case e: java.io.IOException =>
-          Log e(TAG, "Login failure, caused: \""
-            + e.getMessage + "\" by: " + e.getCause)
-          e printStackTrace()
-          exitUser(R.string.chat_error_network,
-            errorMsg = e.getMessage)
+          handleNetworkError(TAG, "Login", e)
 
         case e: IndexOutOfBoundsException =>
-          Log e(TAG, "Login failure, caused: " + e.getMessage)
+          Log e(TAG, "Login fails, cause: " + e.getMessage)
           e printStackTrace()
           exitUser(R.string.chat_error_user)
       }

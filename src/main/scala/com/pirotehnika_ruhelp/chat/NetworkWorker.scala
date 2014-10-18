@@ -84,7 +84,7 @@ protected[chat] trait NetworkWorker { this: Chat =>
     if(strSet ne null)
       strSet.toArray(new Array[String](strSet.size)).
         foreach { str => val lst = str split "%"
-        chatCookies put(lst(0), lst(1))
+          chatCookies put(lst(0), lst(1))
       }
   }
 
@@ -104,4 +104,20 @@ protected[chat] trait NetworkWorker { this: Chat =>
       Message(ids(i), names(i).html, timestamps(i).html, messages(i).html)
     }
   }
+
+  protected[this] def handleNetworkError(tag: String,
+    workName: String, e: java.io.IOException) = e match {
+    case e: org.jsoup.HttpStatusException =>
+      Log e(tag, workName + " fails: can not connect to " + e.getUrl)
+      Log e(tag, "Status code [" + e.getStatusCode + "]")
+      exitUser(R.string.chat_error_network_bad_request,
+        errorMsg = e.getMessage)
+
+    case e: java.io.IOException =>
+      Log e(tag, workName + " fails, cause: \""
+        + e.getMessage + "\" by: " + e.getCause)
+      e printStackTrace()
+      exitUser(R.string.chat_error_network,
+        errorMsg = e.getMessage)
+    }
 }
