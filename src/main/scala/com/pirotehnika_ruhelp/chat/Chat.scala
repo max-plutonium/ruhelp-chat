@@ -150,9 +150,14 @@ protected[chat] abstract class Chat
             (menu: ContextMenu, v: View, menuInfo: ContextMenuInfo) => {
               val minfo = menuInfo.asInstanceOf[AdapterView.AdapterContextMenuInfo]
               val n = Html.fromHtml(arrayList(minfo.position).name).toString
-              if(n != getString(R.string.key_system_user))
-                menu.add(0, 1, 0, s"@$n ") setOnMenuItemClickListener((item: MenuItem) => {
-                    tvMessage.append(item.getTitle); true }) setShowAsAction 0
+
+              if(n != getString(R.string.key_system_user)) {
+                activity.getMenuInflater.inflate(R.menu.chatlist_item, menu)
+                val mi = menu findItem R.id.chatlistmenu_itemname
+                assert(mi ne null)
+                mi setTitle s"@$n " setOnMenuItemClickListener ((item: MenuItem) => {
+                  tvMessage.append(item.getTitle); true }) setShowAsAction 0
+              }
             })
 
           if(!prefs.getString(getString(R.string.key_user_name), "").isEmpty)
