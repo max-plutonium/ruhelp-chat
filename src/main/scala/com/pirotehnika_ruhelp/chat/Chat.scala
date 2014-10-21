@@ -3,12 +3,14 @@ package com.pirotehnika_ruhelp.chat
 import android.app.ProgressDialog
 import android.content.Context
 import android.net.ConnectivityManager
-import android.os.{HandlerThread, Handler}
+import android.os.Handler
 import android.preference.PreferenceManager
+import android.text.Html
 import android.util.Log
-import android.view.View
+import android.view.ContextMenu.ContextMenuInfo
+import android.view.{MenuItem, ContextMenu, View}
 import android.view.inputmethod.InputMethodManager
-import android.widget.{TextView, Toast}
+import android.widget.{AdapterView, TextView, Toast}
 
 protected[chat] abstract class Chat
   (private val activity: TypedActivity) extends NetworkWorker {
@@ -141,6 +143,18 @@ protected[chat] abstract class Chat
               }
               hideKeyboard()
             })
+
+          lstChat setItemsCanFocus true
+
+          lstChat setOnCreateContextMenuListener(
+            (menu: ContextMenu, v: View, menuInfo: ContextMenuInfo) => {
+              val minfo = menuInfo.asInstanceOf[AdapterView.AdapterContextMenuInfo]
+              val n = Html.fromHtml(arrayList(minfo.position).name).toString
+              if(n != getString(R.string.key_system_user))
+                menu.add(0, 1, 0, s"@$n ") setOnMenuItemClickListener((item: MenuItem) => {
+                    tvMessage.append(item.getTitle); true }) setShowAsAction 0
+            })
+
           if(!prefs.getString(getString(R.string.key_user_name), "").isEmpty)
             startAutoLogin()
 

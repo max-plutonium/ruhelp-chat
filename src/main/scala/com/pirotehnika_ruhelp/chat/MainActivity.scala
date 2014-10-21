@@ -8,14 +8,13 @@ import android.view.{Menu, MenuItem}
 import android.widget._
 
 class MainActivity extends TypedActivity {
-  import MainActivity._
+  private val TAG = classOf[MainActivity].getCanonicalName
   import implicits.ListenerBuilders._
   private val chat = Chat(this)
 
   override protected def onCreate(savedInstanceState: Bundle) = {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.main)
-    self = this
     chat start()
   }
 
@@ -63,9 +62,4 @@ class MainActivity extends TypedActivity {
     mi setEnabled !chat.isLoginOrLogout
     super.onCreateOptionsMenu(menu)
   }
-}
-
-object MainActivity {
-  private[MainActivity] val TAG = classOf[MainActivity].getCanonicalName
-  private[MainActivity] var self: MainActivity = null
 }
