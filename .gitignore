@@ -5,6 +5,5 @@ bin/
 gen/
 project/
 target/
+project.properties
 local.properties
-ruhelp_chat.properties
-ruhelp_chat.xml

@@ -1,15 +1,13 @@
 package com.pirotehnika_ruhelp.chat
 
-import android.app.{Activity, Fragment}
+import android.support.v4.app.Fragment
 import android.os.Bundle
 import android.view.{View, LayoutInflater, ViewGroup}
 
 class SmilesFragment extends Fragment {
+  import TypedResource._
   override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View = {
-    val ret = inflater inflate(R.layout.smiles_fragment, null)
-    ret.setMinimumHeight(100)
-    ret.setMinimumWidth(100)
-    ret
+    inflater inflate(TR.layout.smiles_fragment, null)
   }
 
   override def onActivityCreated(savedInstanceState: Bundle): Unit = {

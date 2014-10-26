@@ -1,4 +1,4 @@
-android.Plugin.androidBuild
+androidBuild
 
 organization := "com.pirotehnika-ruhelp"
 

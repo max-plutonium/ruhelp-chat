@@ -148,7 +148,7 @@ protected[chat] abstract class Chat
             }}
 
           btnSmiles setOnClickListener { (v: View) => {
-            val trans = activity.getFragmentManager.beginTransaction()
+            val trans = fragSmiles.getFragmentManager.beginTransaction()
             trans.add(R.id.lytSmiles, fragSmiles)
             trans.addToBackStack(null).commit()
             ()

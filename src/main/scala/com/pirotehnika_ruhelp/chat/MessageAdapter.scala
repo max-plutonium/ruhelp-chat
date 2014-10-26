@@ -6,12 +6,13 @@ import android.net.Uri
 import android.text.Html
 import android.text.Html.ImageGetter
 import android.view.{LayoutInflater, ViewGroup, View}
-import android.widget.{TextView, BaseAdapter}
+import android.widget.BaseAdapter
 
 protected[chat] class MessageAdapter(private val context: Context,
   private val messages: Seq[Message]) extends BaseAdapter {
+  import TypedResource._
 
-  private val inflater = context.getSystemService(
+  private val inflater: TypedLayoutInflater = context.getSystemService(
     Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater]
 
   override def getCount: Int = messages.size
@@ -24,16 +25,16 @@ protected[chat] class MessageAdapter(private val context: Context,
     // Переиспользуем пункты за пределами экрана,
     // чтобы не гонять тяжелый inflate
     val view = if(convertView ne null) convertView
-      else inflater inflate(R.layout.chatlist_item, parent, false)
+      else inflater inflate(TR.layout.chatlist_item, parent, false)
 
     // Заполняем View данными из Message
     val m = messages(position)
     val name = Html.fromHtml(m.name)
     val timestamp = Html.fromHtml(m.timestamp)
     val text = Html.fromHtml(m.text, imageGetter, null)
-    view.findViewById(R.id.tvName).asInstanceOf[TextView].setText(name)
-    view.findViewById(R.id.tvDate).asInstanceOf[TextView].setText(timestamp)
-    view.findViewById(R.id.tvText).asInstanceOf[TextView].setText(text)
+    view.findView(TR.tvName).setText(name)
+    view.findView(TR.tvDate).setText(timestamp)
+    view.findView(TR.tvText).setText(text)
     view
   }
 
