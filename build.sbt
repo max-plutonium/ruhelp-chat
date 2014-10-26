@@ -9,5 +9,6 @@ version := "0.3"
 scalaVersion := "2.11.1"
 
 libraryDependencies ++= Seq(
-  "org.jsoup" % "jsoup" % "1.7.3"
+  "org.jsoup" % "jsoup" % "1.7.3",
+  "com.google.android" % "support-v4" % "r7"
 )

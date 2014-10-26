@@ -31,7 +31,6 @@ protected[chat] class MessageAdapter(private val context: Context,
     val name = Html.fromHtml(m.name)
     val timestamp = Html.fromHtml(m.timestamp)
     val text = Html.fromHtml(m.text, imageGetter, null)
-    view.findViewById(R.id.tvText).asInstanceOf[TextView].setLinksClickable(true)
     view.findViewById(R.id.tvName).asInstanceOf[TextView].setText(name)
     view.findViewById(R.id.tvDate).asInstanceOf[TextView].setText(timestamp)
     view.findViewById(R.id.tvText).asInstanceOf[TextView].setText(text)

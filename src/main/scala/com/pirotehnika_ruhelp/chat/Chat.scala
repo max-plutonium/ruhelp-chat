@@ -85,6 +85,9 @@ protected[chat] abstract class Chat
     private[Chat] var loginOrLogout = false
     private var messagePending = false
 
+    private val fragSmiles = new SmilesFragment
+    private lazy val btnSmiles = activity findView TR.btnSmiles
+
     def sendMessage(msg: MessageForGui) = super.sendMessage(obtainMessage(1, msg))
 
     final def startProgress(titleId: Int, steps: Int) = {
@@ -134,7 +137,7 @@ protected[chat] abstract class Chat
       message.obj match {
         case StartChat =>
           lstChat setAdapter listAdapter
-          btnPost setOnClickListener((v: View) => {
+          btnPost setOnClickListener { (v: View) => {
               val text = tvMessage.getText.toString
               if (!text.trim.isEmpty) {
                 postMessage(text)
@@ -142,11 +145,18 @@ protected[chat] abstract class Chat
                 messagePending = true
               }
               hideKeyboard()
-            })
+            }}
+
+          btnSmiles setOnClickListener { (v: View) => {
+            val trans = activity.getFragmentManager.beginTransaction()
+            trans.add(R.id.lytSmiles, fragSmiles)
+            trans.addToBackStack(null).commit()
+            ()
+          }}
 
           lstChat setItemsCanFocus true
 
-          lstChat setOnCreateContextMenuListener(
+          lstChat setOnCreateContextMenuListener {
             (menu: ContextMenu, v: View, menuInfo: ContextMenuInfo) => {
               val minfo = menuInfo.asInstanceOf[AdapterView.AdapterContextMenuInfo]
               val n = Html.fromHtml(arrayList(minfo.position).name).toString
@@ -158,7 +168,7 @@ protected[chat] abstract class Chat
                 mi setTitle s"@$n " setOnMenuItemClickListener ((item: MenuItem) => {
                   tvMessage.append(item.getTitle); true }) setShowAsAction 0
               }
-            })
+            }}
 
           if(!prefs.getString(getString(R.string.key_user_name), "").isEmpty)
             startAutoLogin()
