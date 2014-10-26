@@ -4,7 +4,7 @@ organization := "com.pirotehnika-ruhelp"
 
 name := "ruhelp_chat"
 
-version := "0.3"
+version := "0.4"
 
 scalaVersion := "2.11.1"
 
