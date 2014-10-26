@@ -6,15 +6,14 @@ import android.util.Log
 import org.jsoup.nodes.Element
 import org.jsoup.{Connection, Jsoup}
 
-protected[chat] trait Login extends NetworkWorker {
-  this: Chat =>
+private[works] trait Login extends NetWork {
   private val TAG = classOf[Login].getName
 
   override protected final val performLogin = new Runnable {
     private final def publishProgress(msg: String) =
-      guiHandler sendMessage new UpdateProgress(msg)
+      gui sendMessage new UpdateProgress(msg)
 
-    override def run(): Unit = doLogin(enterUrl, getTimeout)
+    override def run() = doLogin(enterUrl, getTimeout)
 
     private def doLogin(url: String, timeout: Int): Unit = {
       val name = prefs getString(getString(R.string.key_user_name), "")
@@ -68,7 +67,7 @@ protected[chat] trait Login extends NetworkWorker {
         // Ищем на странице элемент <p class="message error" ...
         // Если находим, значит форум прислал нам описание ошибки
         doc.getElementsByTag("p").toArray(new Array[Element](1)).
-          filter { _.attr("class").equals(getString(R.string.key_form_login_error_class))
+          filter { _.attr("class") equals getString(R.string.key_form_login_error_class)
         } foreach { res => val msg = res.text
           Log w(TAG, "Login failure, caused: " + msg)
           exitUser(R.string.chat_error_login, errorMsg = msg)

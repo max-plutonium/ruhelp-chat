@@ -8,7 +8,7 @@ import android.text.Html.ImageGetter
 import android.view.{LayoutInflater, ViewGroup, View}
 import android.widget.BaseAdapter
 
-protected[chat] class MessageAdapter(private val context: Context,
+private[chat] class MessageAdapter(private val context: Context,
   private val messages: Seq[Message]) extends BaseAdapter {
   import TypedResource._
 
@@ -59,9 +59,4 @@ protected[chat] class MessageAdapter(private val context: Context,
       else null
     }
   }
-}
-
-protected[chat] object MessageAdapter {
-  def apply(context: Context, messages: Seq[Message]) =
-    new MessageAdapter(context, messages)
 }

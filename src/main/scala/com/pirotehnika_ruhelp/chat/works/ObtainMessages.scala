@@ -4,8 +4,7 @@ package works
 import android.util.Log
 import org.jsoup.Jsoup
 
-protected[chat] trait ObtainMessages extends NetworkWorker {
-  this: Chat =>
+private[works] trait ObtainMessages extends NetWork {
   private val TAG = classOf[ObtainMessages].getName
 
   override protected def enterUser() = {
@@ -21,8 +20,8 @@ protected[chat] trait ObtainMessages extends NetworkWorker {
   override protected final val checkMessages: Runnable = new Runnable {
     override def run() = { var interval = getMsgInterval
       try {
-        doRequest(getTimeout) foreach { messages =>
-          guiHandler sendMessage messages }
+        doRequest(getTimeout) foreach {
+          messages => gui sendMessage messages }
 
       } catch {
         case e: java.net.SocketTimeoutException =>

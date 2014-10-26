@@ -4,15 +4,14 @@ package works
 import android.util.Log
 import org.jsoup.{Connection, Jsoup}
 
-protected[chat] trait Logout extends NetworkWorker {
-  this: Chat =>
+private[works] trait Logout extends NetWork {
   private val TAG = classOf[Logout].getName
 
   override protected final val performLogout = new Runnable {
     private final def publishProgress(msg: String) =
-      guiHandler sendMessage new UpdateProgress(msg)
+      gui sendMessage new UpdateProgress(msg)
 
-    override def run(): Unit = doLogout(enterUrl, getTimeout)
+    override def run() = doLogout(enterUrl, getTimeout)
 
     private def doLogout(baseUrl: String, timeout: Int) = {
       val url = baseUrl + "&do=logout&k=" + secureHash

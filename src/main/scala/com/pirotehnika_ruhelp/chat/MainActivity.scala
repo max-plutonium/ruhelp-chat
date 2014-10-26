@@ -9,7 +9,7 @@ import android.widget._
 
 class MainActivity extends TypedActivity {
   private val TAG = classOf[MainActivity].getCanonicalName
-  private val chat = Chat(this)
+  private val chat = new Chat(this)
   import implicits.ListenerBuilders._
 
   override protected def onCreate(savedInstanceState: Bundle) = {

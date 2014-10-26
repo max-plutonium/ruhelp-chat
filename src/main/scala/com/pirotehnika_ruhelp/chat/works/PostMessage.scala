@@ -4,16 +4,14 @@ package works
 import android.util.Log
 import org.jsoup.Jsoup
 
-protected[chat] trait PostMessage extends NetworkWorker {
-  this: Chat =>
+private[works] trait PostMessage extends NetWork {
   private val TAG = classOf[PostMessage].getName
 
-  override protected final def postMessage(text: String): Unit =
+  override final def postMessage(text: String) =
     workerHandler post new PostMessageTask(text)
 
   private class PostMessageTask(private val text: String) extends Runnable {
-    override def run(): Unit = {
-      guiHandler sendMessage {
+    override def run() = { gui sendMessage {
         try {
           val url = siteUrl + "?s=" + chatCookies.get("session_id") +
             "&app=shoutbox&module=ajax&section=coreAjax" +

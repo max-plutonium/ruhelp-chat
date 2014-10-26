@@ -3,7 +3,6 @@ package com.pirotehnika_ruhelp.chat
 import android.app.ProgressDialog
 import android.content.Context
 import android.net.ConnectivityManager
-import android.os.Handler
 import android.preference.PreferenceManager
 import android.text.Html
 import android.util.Log
@@ -12,48 +11,30 @@ import android.view.{MenuItem, ContextMenu, View}
 import android.view.inputmethod.InputMethodManager
 import android.widget.{AdapterView, TextView, Toast}
 
-protected[chat] abstract class Chat
-  (private val activity: TypedActivity) extends NetworkWorker {
+protected[chat] class Chat(private val activity: TypedActivity) {
+  private val TAG = classOf[Chat].getName
   private[chat] lazy val prefs = PreferenceManager getDefaultSharedPreferences activity
   private[chat] val guiHandler: GuiHandler = new GuiHandler(activity)
+  private val network = NetworkWorker(activity, guiHandler)
 
-  import Chat._
   import implicits.ListenerBuilders._
 
   final def start() = guiHandler sendMessage StartChat
 
   final def login() = {
     guiHandler startProgress(R.string.chat_login_progress_title, 5)
-    workerHandler post performLogin
+    network login()
     guiHandler.loginOrLogout = true
   }
 
   final def logout() = {
     guiHandler startProgress(R.string.chat_logout_progress_title, 2)
-    workerHandler post performLogout
+    network logout()
     guiHandler.loginOrLogout = true
   }
 
-  final def isUserEntered = userEntered
+  final def isUserEntered = network.userEntered
   final def isLoginOrLogout = guiHandler.loginOrLogout
-
-  private[chat] final def getUserAgent = {
-    val info = activity.getPackageManager.getPackageInfo(activity.getPackageName, 0)
-    val userAgent = getString(R.string.key_useragent)
-    val verCode = info.versionCode
-    val verName = info.versionName
-    val sdkCode = android.os.Build.VERSION.SDK_INT
-    val sdkName = android.os.Build.VERSION.RELEASE
-    val man = android.os.Build.MANUFACTURER
-    val model = android.os.Build.MODEL
-    val abi = android.os.Build.CPU_ABI
-    val serial = android.os.Build.SERIAL
-    val bootLoader = android.os.Build.BOOTLOADER
-    val radio = android.os.Build.getRadioVersion
-    val fp = android.os.Build.FINGERPRINT
-    s"$userAgent v$verName (Linux; U; Android $sdkName/$sdkCode; " +
-      s"ru-Ru; $model; $abi; $bootLoader; $radio) Mobile/$man Version/$verCode $serial/$fp"
-  }
 
   private[chat] final def getString(resId: Int) = activity getString resId
 
@@ -67,17 +48,9 @@ protected[chat] abstract class Chat
       true } else false)
   }
 
-  private[chat] sealed trait MessageForGui
-  private[chat] case object StartChat extends MessageForGui
-  private[chat] case class UpdateProgress(message: String) extends MessageForGui
-  private[chat] case class Messages(seq: Seq[Message]) extends MessageForGui
-  private[chat] case class Members(total: Int, guests: Int,
-    members: Int, anons: Int, seq: Option[Seq[Member]]) extends MessageForGui
-  private[chat] case class PostError(errorStringId: Int) extends MessageForGui
-
-  private[chat] class GuiHandler(private val context: Context) extends Handler {
+  private[chat] class GuiHandler(private val context: Context) extends GuiWorker {
     private val arrayList = collection.mutable.ArrayBuffer[Message]()
-    private lazy val listAdapter = MessageAdapter(context, arrayList)
+    private lazy val listAdapter = new MessageAdapter(context, arrayList)
     private lazy val lstChat = activity findView TR.lstChat
     private lazy val tvMessage = activity findView TR.tvMessage
     private lazy val btnPost = activity findView TR.btnPost
@@ -87,8 +60,6 @@ protected[chat] abstract class Chat
 
     private val fragSmiles = new SmilesFragment
     private lazy val btnSmiles = activity findView TR.btnSmiles
-
-    def sendMessage(msg: MessageForGui) = super.sendMessage(obtainMessage(1, msg))
 
     final def startProgress(titleId: Int, steps: Int) = {
       progressDialog = new ProgressDialog(context)
@@ -118,8 +89,8 @@ protected[chat] abstract class Chat
     }
 
     private final def startAutoLogin() = {
-      if(workerHandler ne null) {
-        tryAutoLogin()
+      if(network.ready) {
+        network tryAutoLogin()
         startSpinnerProgress(getString(R.string.chat_login_progress_title))
         loginOrLogout = true
       } else
@@ -140,7 +111,7 @@ protected[chat] abstract class Chat
           btnPost setOnClickListener { (v: View) => {
               val text = tvMessage.getText.toString
               if (!text.trim.isEmpty) {
-                postMessage(text)
+                network postMessage(text)
                 v setEnabled false
                 messagePending = true
               }
@@ -203,13 +174,4 @@ protected[chat] abstract class Chat
       }
     }
   }
-}
-
-protected[chat] object Chat {
-  import works._
-  private[Chat] val TAG = classOf[Chat].getCanonicalName
-  private[chat] def apply(activity: TypedActivity): Chat =
-    new Chat(activity) with Login with Logout
-      with ObtainMembers with ObtainMessages
-      with PostMessage
 }
