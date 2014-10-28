@@ -3,9 +3,9 @@ package com.pirotehnika_ruhelp.chat
 import android.content.Context
 import android.os.Handler
 
-case class Message(id: String, name: String, timestamp: String, text: String)
+private[chat] case class Message(id: String, name: String, timestamp: String, text: String)
 
-case class Member(name: String, href: String, lastTime: String)
+private[chat] case class Member(name: String, href: String, lastTime: String)
 
 private[chat] sealed trait MessageForGui
 private[chat] case object StartChat extends MessageForGui
@@ -16,7 +16,7 @@ private[chat] case class Members(total: Int, guests: Int,
 private[chat] case class PostError(errorStringId: Int) extends MessageForGui
 
 private[chat] trait GuiWorker extends Handler {
-  def sendMessage(msg: MessageForGui) = super.sendMessage(obtainMessage(1, msg))
+  final def sendMessage(msg: MessageForGui) = super.sendMessage(obtainMessage(1, msg))
 }
 
 private[chat] trait NetworkWorker {

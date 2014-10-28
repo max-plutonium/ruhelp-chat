@@ -1,68 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout
+<LinearLayout
         xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:orientation="vertical"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" >
+        android:layout_height="match_parent">
 
-    <LinearLayout
-            android:orientation="horizontal"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="top"
-            android:layout_alignParentTop="true"
-            android:layout_above="@+id/lytMessage">
+    <fragment
+            android:id="@+id/fragMessages"
+            android:name="com.pirotehnika_ruhelp.chat.MessagesFragment"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            tools:layout="@layout/messages_fragment" />
 
-        <ListView
-                android:id="@+id/lstChat"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:textFilterEnabled="false"
-                android:focusable="true"
-                android:descendantFocusability="beforeDescendants" />
-    </LinearLayout>
-
-    <RelativeLayout
-            android:id="@+id/lytMessage"
-            android:orientation="horizontal"
+    <fragment
+            android:id="@+id/fragPostForm"
+            android:name="com.pirotehnika_ruhelp.chat.PostFormFragment"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="bottom"
-            android:layout_alignParentBottom="true">
-
-        <Button
-                android:id="@+id/btnSmiles"
-                style="@android:style/Widget.Holo.Button.Borderless.Small"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentLeft="true"
-                android:layout_centerVertical="true"
-                android:text="=)" />
-        <EditText
-                android:id="@+id/tvMessage"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_toRightOf="@+id/btnSmiles"
-                android:layout_toLeftOf="@+id/btnPost"
-                android:layout_centerVertical="true"
-                android:inputType="textMultiLine"
-                android:maxLines="5"
-                android:imeOptions="flagNoExtractUi" />
-        <Button
-                android:id="@+id/btnPost"
-                style="@android:style/Widget.Holo.Button.Borderless"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentRight="true"
-                android:enabled="false"
-                android:text="=>"
-                android:focusable="true"
-                android:layout_centerVertical="true" />
-    </RelativeLayout>
+            tools:layout="@layout/postform_fragment" />
 
     <FrameLayout
             android:id="@+id/lytSmiles"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="bottom"
-            android:layout_below="@id/lytMessage" />
-</RelativeLayout>
+            android:layout_height="wrap_content"
+            android:gravity="bottom" />
+
+</LinearLayout>
