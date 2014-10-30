@@ -25,7 +25,7 @@ class PostFormFragment extends Fragment {
         val text = tvMessage.getText.toString
         if (!text.trim.isEmpty) {
           v setEnabled false
-          postMessageCallback foreach (_(text))
+          postMessageCallback foreach(_(text))
         }
       }
     super.onActivityCreated(savedInstanceState)

@@ -6,11 +6,12 @@ import android.view.{View, LayoutInflater, ViewGroup}
 
 class SmilesFragment extends Fragment {
   import TypedResource._
-  override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle): View = {
-    inflater inflate(TR.layout.smiles_fragment, null)
-  }
 
-  override def onActivityCreated(savedInstanceState: Bundle): Unit = {
+  override final def onCreateView(inflater: LayoutInflater,
+    container: ViewGroup, savedInstanceState: Bundle): View =
+    inflater inflate(TR.layout.smiles_fragment, null)
+
+  override final def onActivityCreated(savedInstanceState: Bundle): Unit = {
     super.onActivityCreated(savedInstanceState)
   }
 }
