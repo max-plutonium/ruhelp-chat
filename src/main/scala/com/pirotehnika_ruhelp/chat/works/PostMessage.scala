@@ -8,7 +8,7 @@ private[works] trait PostMessage extends NetWork {
   private val TAG = classOf[PostMessage].getName
 
   override final def postMessage(text: String) =
-    workerHandler post new PostMessageTask(text)
+    Chat.network execute new PostMessageTask(text)
 
   private class PostMessageTask(private val text: String) extends Runnable {
     override def run() = { gui sendMessage {

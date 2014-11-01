@@ -47,10 +47,10 @@ private[chat] class MessageAdapter(private val context: Context,
         try {
           val is = context.getAssets.open("smiles/" + picUri.getLastPathSegment)
           if (is eq null) return null
-          val drawable = Drawable.createFromStream(is, null).asInstanceOf[BitmapDrawable]
-          val bitmap = drawable.getBitmap
-          drawable.setBounds(0, 0, bitmap.getWidth * 2, bitmap.getHeight * 2)
-          drawable
+          val dr = Drawable.createFromStream(is, null).asInstanceOf[BitmapDrawable]
+          val bitmap = dr.getBitmap
+          dr.setBounds(0, 0, bitmap.getWidth * 2, bitmap.getHeight * 2)
+          new ChatDrawable(context.getResources, Some(dr))
 
         } catch { case e: java.io.FileNotFoundException =>
           null

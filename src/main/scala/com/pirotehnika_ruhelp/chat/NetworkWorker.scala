@@ -1,7 +1,10 @@
 package com.pirotehnika_ruhelp.chat
 
 import android.content.Context
+import android.graphics.drawable.Drawable
 import android.os.Handler
+
+import scala.concurrent.Future
 
 private[chat] case class Message(id: String, name: String, timestamp: String, text: String)
 
@@ -22,12 +25,12 @@ private[chat] trait GuiWorker extends Handler {
 private[chat] trait NetworkWorker {
   protected val context: Context
   protected val gui: GuiWorker
-  def ready: Boolean
   def login(): Unit
   def logout(): Unit
   def userEntered: Boolean
   def tryAutoLogin(): Unit
   def postMessage(text: String): Unit
+  def downloadDrawable(url: String): Future[Drawable]
 }
 
 private[chat] object NetworkWorker {

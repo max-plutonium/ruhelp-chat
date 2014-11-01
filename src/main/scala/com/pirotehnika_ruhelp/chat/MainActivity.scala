@@ -2,6 +2,7 @@ package com.pirotehnika_ruhelp.chat
 
 import android.app.{ProgressDialog, AlertDialog}
 import android.content.{Context, DialogInterface, Intent}
+import android.graphics.drawable.Drawable
 import android.net.ConnectivityManager
 import android.os
 import android.os._
@@ -31,6 +32,9 @@ class MainActivity extends TypedActivity {
 
   override protected final def onCreate(savedInstanceState: Bundle) = {
     super.onCreate(savedInstanceState)
+
+    Chat.handler = gui
+
     setContentView(R.layout.main)
 
     fragMessages.appendTextCallback = Some {
@@ -109,9 +113,10 @@ class MainActivity extends TypedActivity {
       true
     }
 
-  private final def hideKeyboard(): Unit = getSystemService(
-    Context.INPUT_METHOD_SERVICE).asInstanceOf[InputMethodManager]
+  private final def hideKeyboard() {
+    getSystemService(Context.INPUT_METHOD_SERVICE).asInstanceOf[InputMethodManager]
       .hideSoftInputFromWindow(getCurrentFocus.getWindowToken, 0)
+  }
 
   private final def isNetworkAvailable: Boolean = {
     val cm = getSystemService(Context.CONNECTIVITY_SERVICE).asInstanceOf[ConnectivityManager]
@@ -151,16 +156,13 @@ class MainActivity extends TypedActivity {
   }
 
   private final def startAutoLogin() = {
-    if(network.ready) {
-      network tryAutoLogin()
-      startSpinnerProgress(getString(R.string.chat_login_progress_title))
-      loginOrLogout = true
-    } else
-      gui sendMessage StartChat
+    network tryAutoLogin()
+    startSpinnerProgress(getString(R.string.chat_login_progress_title))
+    loginOrLogout = true
   }
 
   private final class GuiHandler extends GuiWorker {
-    override def handleMessage(msg: os.Message): Unit = {
+    override def handleMessage(msg: os.Message) {
       super.handleMessage(msg); msg.obj match {
         case StartChat => startAutoLogin()
         case UpdateProgress(m) => updateProgress(m)
