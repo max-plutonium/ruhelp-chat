@@ -161,6 +161,8 @@ class MainActivity extends TypedActivity {
   }
 
   private final class GuiHandler extends GuiWorker {
+    import Chat.{gui => guiExec}
+
     override def handleMessage(msg: os.Message) {
       super.handleMessage(msg); msg.obj match {
         case UpdateProgress(m) => updateProgress(m)
@@ -168,9 +170,12 @@ class MainActivity extends TypedActivity {
         case PostError(errorId) => fragPostForm onPostMessage()
         case Messages(seq) =>
           if(loginOrLogout) {
-            if("entered" equals seq(0).id)
+            if("entered" equals seq(0).id) {
               fragPostForm onUserEnter()
-            else if("not entered" equals seq(0).id)
+              network.obtainSmiles onSuccess {
+                case seq: Seq[Smile] => fragSmiles setupSmiles seq
+              }
+            } else if("not entered" equals seq(0).id)
               fragPostForm onUserExit()
             stopProgress()
             loginOrLogout = false

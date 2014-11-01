@@ -19,7 +19,7 @@ class PostFormFragment extends Fragment {
     container: ViewGroup, savedInstanceState: Bundle): View =
     inflater inflate(TR.layout.postform_fragment, null)
 
-  override final def onActivityCreated(savedInstanceState: Bundle): Unit = {
+  override final def onActivityCreated(savedInstanceState: Bundle) {
     btnSmiles setOnClickListener((v: View) => onSmilesCallback foreach(_()))
     btnPost setOnClickListener { (v: View) =>
         val text = tvMessage.getText.toString
@@ -31,15 +31,15 @@ class PostFormFragment extends Fragment {
     super.onActivityCreated(savedInstanceState)
   }
 
-  final def onUserEnter(): Unit = btnPost setEnabled true
-  final def onUserExit(): Unit = btnPost setEnabled false
+  final def onUserEnter() = btnPost setEnabled true
+  final def onUserExit() = btnPost setEnabled false
 
-  final def onPostMessage(): Unit = {
+  final def onPostMessage() {
     btnPost setEnabled true
     tvMessage.setText("", TextView.BufferType.NORMAL)
   }
 
-  final def onPostError(errorId: Int): Unit = {
+  final def onPostError(errorId: Int) {
     btnPost setEnabled true
     Toast makeText(getActivity, errorId, Toast.LENGTH_LONG) show()
   }

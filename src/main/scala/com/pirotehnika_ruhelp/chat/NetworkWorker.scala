@@ -11,6 +11,8 @@ private[chat] case class Message(id: String, name: Spanned, timestamp: Spanned, 
 
 private[chat] case class Member(name: String, href: String, lastTime: String)
 
+private[chat] case class Smile(code: String, url: String)
+
 private[chat] sealed trait MessageForGui
 private[chat] case class UpdateProgress(message: String) extends MessageForGui
 private[chat] case class Messages(seq: Seq[Message]) extends MessageForGui
@@ -31,6 +33,7 @@ private[chat] trait NetworkWorker {
   def tryAutoLogin(): Unit
   def postMessage(text: String): Unit
   def downloadDrawable(url: String): Future[Drawable]
+  def obtainSmiles: Future[Seq[Smile]]
 }
 
 private[chat] object NetworkWorker {

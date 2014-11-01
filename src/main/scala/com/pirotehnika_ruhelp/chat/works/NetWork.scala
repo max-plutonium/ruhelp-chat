@@ -19,7 +19,7 @@ private[chat] object NetWork {
     new { override val context = acontext; override val gui = agui }
     with NetWork with Login with Logout
     with ObtainMembers with ObtainMessages
-    with PostMessage with DownloadDrawable
+    with PostMessage with DownloadDrawable with ObtainSmiles
 }
 
 private[works] trait NetWork extends NetworkWorker {
@@ -47,6 +47,7 @@ private[works] trait NetWork extends NetworkWorker {
 
   override def postMessage(text: String): Unit
   override def downloadDrawable(url: String): Future[Drawable]
+  override def obtainSmiles: Future[Seq[Smile]]
 
   protected val performLogin: Runnable
   protected val performLogout: Runnable
@@ -128,7 +129,7 @@ private[works] trait NetWork extends NetworkWorker {
       s"ru-Ru; $model; $abi; $bootLoader; $radio) Mobile/$man Version/$verCode $serial/$fp"
   }
 
-  private val imageGetter = new ImageGetter {
+  protected final val imageGetter = new ImageGetter {
     import collection.JavaConversions.asJavaCollection
     import Chat.{gui => guiExec}
 

@@ -34,7 +34,7 @@ class MessagesFragment extends ListFragment {
     super.onActivityCreated(savedInstanceState)
   }
 
-  final def appendMessages(seq: Seq[Message]) = {
+  final def appendMessages(seq: Seq[Message]) {
     if(null eq getListAdapter)
       setListAdapter(listAdapter)
     messageBuffer ++= seq
