@@ -1,13 +1,18 @@
 package com.pirotehnika_ruhelp.chat
 package works
 
+import java.io.{FileOutputStream, FileInputStream, File}
+
 import android.content.Context
-import android.graphics.drawable.Drawable
-import android.os.{HandlerThread, Handler}
+import android.graphics.Bitmap
+import android.graphics.drawable.{BitmapDrawable, Drawable}
+import android.net.Uri
 import android.preference.PreferenceManager
+import android.text.Html
+import android.text.Html.ImageGetter
 import android.util.Log
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 
 private[chat] object NetWork {
   def apply(acontext: Context, agui: GuiWorker): NetworkWorker =
@@ -52,8 +57,8 @@ private[works] trait NetWork extends NetworkWorker {
     saveCookies()
     inAutoLogin = false; isUserEntered = true
     val enteredMessage = Message("entered",
-      getString(R.string.key_system_user), "",
-      getString(R.string.chat_user_login))
+      Html.fromHtml(getString(R.string.key_system_user)), Html.fromHtml(""),
+      Html.fromHtml(getString(R.string.chat_user_login)))
     gui sendMessage Messages(Seq(enteredMessage))
   }
 
@@ -64,7 +69,8 @@ private[works] trait NetWork extends NetworkWorker {
     val text = if(-1 == errorId) getString(R.string.chat_user_logout)
       else getString(errorId) + (if(errorMsg.isEmpty) "" else "\n" + errorMsg)
     val notEnteredMessage = Message("not entered",
-      getString(R.string.key_system_user), "", text)
+      Html.fromHtml(getString(R.string.key_system_user)),
+      Html.fromHtml(""), Html.fromHtml(text))
     gui sendMessage Messages(Seq(notEnteredMessage))
   }
 
@@ -122,6 +128,61 @@ private[works] trait NetWork extends NetworkWorker {
       s"ru-Ru; $model; $abi; $bootLoader; $radio) Mobile/$man Version/$verCode $serial/$fp"
   }
 
+  private val imageGetter = new ImageGetter {
+    import collection.JavaConversions.asJavaCollection
+    import Chat.{gui => guiExec}
+
+    private final def isSmiles(picUri: Uri): Boolean = {
+      val seq = Seq("public", "style_emoticons", "default")
+      picUri.getPathSegments.containsAll(seq)
+    }
+
+    private final def getLocalDrawable(source: String, f: File) = {
+      val is = new FileInputStream(f)
+      var res = Drawable.createFromStream(is, null).asInstanceOf[BitmapDrawable]
+      if(res eq null) // Файл поврежден, надо заменить
+        res = getRemoteDrawable(source, f)
+      is.close()
+      prepareDrawable(res)
+    }
+
+    private final def getRemoteDrawable(source: String, f: File) = {
+      f.createNewFile()
+      val res = new ChatDrawable(context.getResources)
+      downloadDrawable(source) onSuccess { case d =>
+        val os = new FileOutputStream(f)
+        val bm = d.asInstanceOf[BitmapDrawable].getBitmap
+        bm.compress(Bitmap.CompressFormat.PNG, 100, os)
+        os.close()
+        res.setDrawable(d)
+        res.invalidateSelf()
+      }
+      res
+    }
+
+    override final def getDrawable(source: String): Drawable = {
+      val picUri = Uri parse source
+      val dirPathToSave = context.getExternalCacheDir.getAbsolutePath +
+        (if(isSmiles(picUri)) "/smiles/" else "/pics/")
+      val pathToSave = dirPathToSave + picUri.getLastPathSegment
+
+      val dir = new File(dirPathToSave)
+      if(!dir.exists()) dir.mkdir()
+
+      val f = new File(pathToSave)
+      if(f.exists())
+        getLocalDrawable(source, f)
+      else
+        getRemoteDrawable(source, f)
+    }
+  }
+
+  protected final def prepareDrawable(d: BitmapDrawable) = if(d ne null) {
+      val bitmap = d.getBitmap
+      d.setBounds(0, 0, bitmap.getWidth * 2, bitmap.getHeight * 2)
+      d
+    } else null
+
   protected final def extractMessages(doc: org.jsoup.nodes.Document) = {
     import org.jsoup.nodes.Element
     val spans = doc getElementsByTag "span" toArray new Array[Element](0)
@@ -135,7 +196,9 @@ private[works] trait NetWork extends NetworkWorker {
 
     assert((ids.size == names.size) && (names.size == timestamps.size) && (timestamps.size == messages.size))
     (0 until names.size) map { case i =>
-      Message(ids(i), names(i).html, timestamps(i).html, messages(i).html)
+      Message(ids(i), Html.fromHtml(names(i).html),
+        Html.fromHtml(timestamps(i).html),
+        Html.fromHtml(messages(i).html, imageGetter, null))
     }
   }
 

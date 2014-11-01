@@ -2,7 +2,6 @@ package com.pirotehnika_ruhelp.chat
 
 import android.app.{ProgressDialog, AlertDialog}
 import android.content.{Context, DialogInterface, Intent}
-import android.graphics.drawable.Drawable
 import android.net.ConnectivityManager
 import android.os
 import android.os._
@@ -164,7 +163,6 @@ class MainActivity extends TypedActivity {
   private final class GuiHandler extends GuiWorker {
     override def handleMessage(msg: os.Message) {
       super.handleMessage(msg); msg.obj match {
-        case StartChat => startAutoLogin()
         case UpdateProgress(m) => updateProgress(m)
         case Members(total, guests, members, anons, seq) =>
         case PostError(errorId) => fragPostForm onPostMessage()

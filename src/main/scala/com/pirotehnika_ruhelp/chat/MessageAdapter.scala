@@ -1,10 +1,6 @@
 package com.pirotehnika_ruhelp.chat
 
 import android.content.Context
-import android.graphics.drawable.{BitmapDrawable, Drawable}
-import android.net.Uri
-import android.text.Html
-import android.text.Html.ImageGetter
 import android.view.{LayoutInflater, ViewGroup, View}
 import android.widget.BaseAdapter
 
@@ -29,34 +25,9 @@ private[chat] class MessageAdapter(private val context: Context,
 
     // Заполняем View данными из Message
     val m = messages(position)
-    val name = Html.fromHtml(m.name)
-    val timestamp = Html.fromHtml(m.timestamp)
-    val text = Html.fromHtml(m.text, imageGetter, null)
-    view.findView(TR.tvName).setText(name)
-    view.findView(TR.tvDate).setText(timestamp)
-    view.findView(TR.tvText).setText(text)
+    view.findView(TR.tvName).setText(m.name)
+    view.findView(TR.tvDate).setText(m.timestamp)
+    view.findView(TR.tvText).setText(m.text)
     view
-  }
-
-  private val imageGetter = new ImageGetter {
-    import collection.JavaConversions.asJavaCollection
-    override def getDrawable(source: String): Drawable = {
-      val picUri = Uri parse source
-      val seq = Seq("public", "style_emoticons", "default")
-      if (picUri.getPathSegments.containsAll(seq)) {
-        try {
-          val is = context.getAssets.open("smiles/" + picUri.getLastPathSegment)
-          if (is eq null) return null
-          val dr = Drawable.createFromStream(is, null).asInstanceOf[BitmapDrawable]
-          val bitmap = dr.getBitmap
-          dr.setBounds(0, 0, bitmap.getWidth * 2, bitmap.getHeight * 2)
-          new ChatDrawable(context.getResources, Some(dr))
-
-        } catch { case e: java.io.FileNotFoundException =>
-          null
-        }
-      }
-      else null
-    }
   }
 }

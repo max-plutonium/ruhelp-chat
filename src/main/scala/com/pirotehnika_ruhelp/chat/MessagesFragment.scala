@@ -18,7 +18,7 @@ class MessagesFragment extends ListFragment {
     getListView setOnCreateContextMenuListener {
       (menu: ContextMenu, v: View, menuInfo: ContextMenuInfo) => {
         val minfo = menuInfo.asInstanceOf[AdapterView.AdapterContextMenuInfo]
-        val n = Html.fromHtml(messageBuffer(minfo.position).name).toString
+        val n = messageBuffer(minfo.position).name.toString
 
         if(n != getString(R.string.key_system_user)) {
           getActivity.getMenuInflater.inflate(R.menu.chatlist_item, menu)

@@ -20,10 +20,10 @@ object Chat {
   var instance: Chat = _
   var handler: Handler = _
   val networkSched = JExecutors newSingleThreadScheduledExecutor()
-  val network: ExecutionContext = ExecutionContext fromExecutor new Executor {
+  implicit val network: ExecutionContext = ExecutionContext fromExecutor new Executor {
     override def execute(command: Runnable) = networkSched execute command
   }
-  val gui: ExecutionContext = ExecutionContext fromExecutor new Executor {
+  implicit val gui: ExecutionContext = ExecutionContext fromExecutor new Executor {
     override def execute(runnable: Runnable) = handler.post(runnable)
   }
 }
