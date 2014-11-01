@@ -11,7 +11,7 @@ private[works] trait PostMessage extends NetWork {
     Chat.network execute new PostMessageTask(text)
 
   private class PostMessageTask(private val text: String) extends Runnable {
-    override def run() = { gui sendMessage {
+    override def run() = { Chat.handler sendMessage {
         try {
           val url = siteUrl + "?s=" + chatCookies.get("session_id") +
             "&app=shoutbox&module=ajax&section=coreAjax" +

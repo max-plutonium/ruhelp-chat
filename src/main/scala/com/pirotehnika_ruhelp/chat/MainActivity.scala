@@ -22,17 +22,17 @@ class MainActivity extends TypedActivity {
   private lazy val fragPostForm = getFragmentManager.
     findFragmentById(R.id.fragPostForm).asInstanceOf[PostFormFragment]
   private val fragSmiles = new SmilesFragment
-  private val gui: GuiWorker = new GuiHandler
 
   private var loginOrLogout = false
   private var messagePending = false
-  private val network = NetworkWorker(this, gui)
   private var progressDialog: ProgressDialog = null
 
   override protected final def onCreate(savedInstanceState: Bundle) = {
     super.onCreate(savedInstanceState)
 
-    Chat.handler = gui
+    Chat.instance = this
+    Chat.handler = new GuiHandler
+    Chat.networker = NetworkWorker(this)
 
     setContentView(R.layout.main)
 
@@ -48,7 +48,7 @@ class MainActivity extends TypedActivity {
       })
 
     fragPostForm.postMessageCallback = Some((text: String) => {
-        network postMessage text
+        Chat.networker postMessage text
         messagePending = true
         hideKeyboard()
       })
@@ -68,7 +68,7 @@ class MainActivity extends TypedActivity {
   override final def onPrepareOptionsMenu(menu: Menu): Boolean = {
     val mi = menu findItem R.id.menu_signing
     assert(mi ne null)
-    mi setTitle(if(network.userEntered) R.string.chat_menu_sign_off
+    mi setTitle(if(Chat.networker.userEntered) R.string.chat_menu_sign_off
       else R.string.chat_menu_sign_on)
     mi setOnMenuItemClickListener getLoginListener
     mi setEnabled !loginOrLogout
@@ -77,17 +77,17 @@ class MainActivity extends TypedActivity {
 
   private final def getLoginListener: MenuItem.OnMenuItemClickListener =
     if(isNetworkAvailable)
-      if(network.userEntered)
+      if(Chat.networker.userEntered)
         (item: MenuItem) => {
           startProgress(R.string.chat_logout_progress_title, 2)
-          network logout()
+          Chat.networker logout()
           loginOrLogout = true
           true
         }
       else
         (item: MenuItem) => {
           startProgress(R.string.chat_login_progress_title, 5)
-          network login()
+          Chat.networker login()
           loginOrLogout = true
           true
         }
@@ -155,24 +155,24 @@ class MainActivity extends TypedActivity {
   }
 
   private final def startAutoLogin() = {
-    network tryAutoLogin()
+    Chat.networker tryAutoLogin()
     startSpinnerProgress(getString(R.string.chat_login_progress_title))
     loginOrLogout = true
   }
 
   private final class GuiHandler extends GuiWorker {
-    import Chat.{gui => guiExec}
+    import Chat.gui
 
     override def handleMessage(msg: os.Message) {
       super.handleMessage(msg); msg.obj match {
         case UpdateProgress(m) => updateProgress(m)
         case Members(total, guests, members, anons, seq) =>
-        case PostError(errorId) => fragPostForm onPostMessage()
+        case PostError(errorId) => fragPostForm onPostError errorId
         case Messages(seq) =>
           if(loginOrLogout) {
             if("entered" equals seq(0).id) {
               fragPostForm onUserEnter()
-              network.obtainSmiles onSuccess {
+              Chat.networker.obtainSmiles onSuccess {
                 case seq: Seq[Smile] => fragSmiles setupSmiles seq
               }
             } else if("not entered" equals seq(0).id)

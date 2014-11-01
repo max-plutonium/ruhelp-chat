@@ -1,11 +1,8 @@
 package com.pirotehnika_ruhelp.chat
 package works
 
-import java.io.{FileOutputStream, FileInputStream, File}
-
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.drawable.{BitmapDrawable, Drawable}
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.preference.PreferenceManager
 import android.text.Html
@@ -15,8 +12,8 @@ import android.util.Log
 import scala.concurrent.Future
 
 private[chat] object NetWork {
-  def apply(acontext: Context, agui: GuiWorker): NetworkWorker =
-    new { override val context = acontext; override val gui = agui }
+  def apply(acontext: Context): NetworkWorker =
+    new { override val context = acontext }
     with NetWork with Login with Logout
     with ObtainMembers with ObtainMessages
     with PostMessage with DownloadDrawable with ObtainSmiles
@@ -60,7 +57,7 @@ private[works] trait NetWork extends NetworkWorker {
     val enteredMessage = Message("entered",
       Html.fromHtml(getString(R.string.key_system_user)), Html.fromHtml(""),
       Html.fromHtml(getString(R.string.chat_user_login)))
-    gui sendMessage Messages(Seq(enteredMessage))
+    Chat.handler sendMessage Messages(Seq(enteredMessage))
   }
 
   protected def exitUser(errorId: Int = -1, errorMsg: String = "") {
@@ -72,7 +69,7 @@ private[works] trait NetWork extends NetworkWorker {
     val notEnteredMessage = Message("not entered",
       Html.fromHtml(getString(R.string.key_system_user)),
       Html.fromHtml(""), Html.fromHtml(text))
-    gui sendMessage Messages(Seq(notEnteredMessage))
+    Chat.handler sendMessage Messages(Seq(notEnteredMessage))
   }
 
   protected final def saveCookies() {
@@ -130,59 +127,9 @@ private[works] trait NetWork extends NetworkWorker {
   }
 
   protected final val imageGetter = new ImageGetter {
-    import collection.JavaConversions.asJavaCollection
-    import Chat.{gui => guiExec}
-
-    private final def isSmiles(picUri: Uri): Boolean = {
-      val seq = Seq("public", "style_emoticons", "default")
-      picUri.getPathSegments.containsAll(seq)
-    }
-
-    private final def getLocalDrawable(source: String, f: File) = {
-      val is = new FileInputStream(f)
-      var res = Drawable.createFromStream(is, null).asInstanceOf[BitmapDrawable]
-      if(res eq null) // Файл поврежден, надо заменить
-        res = getRemoteDrawable(source, f)
-      is.close()
-      prepareDrawable(res)
-    }
-
-    private final def getRemoteDrawable(source: String, f: File) = {
-      f.createNewFile()
-      val res = new ChatDrawable(context.getResources)
-      downloadDrawable(source) onSuccess { case d =>
-        val os = new FileOutputStream(f)
-        val bm = d.asInstanceOf[BitmapDrawable].getBitmap
-        bm.compress(Bitmap.CompressFormat.PNG, 100, os)
-        os.close()
-        res.setDrawable(d)
-        res.invalidateSelf()
-      }
-      res
-    }
-
-    override final def getDrawable(source: String): Drawable = {
-      val picUri = Uri parse source
-      val dirPathToSave = context.getExternalCacheDir.getAbsolutePath +
-        (if(isSmiles(picUri)) "/smiles/" else "/pics/")
-      val pathToSave = dirPathToSave + picUri.getLastPathSegment
-
-      val dir = new File(dirPathToSave)
-      if(!dir.exists()) dir.mkdir()
-
-      val f = new File(pathToSave)
-      if(f.exists())
-        getLocalDrawable(source, f)
-      else
-        getRemoteDrawable(source, f)
-    }
+    override final def getDrawable(source: String): Drawable =
+      ChatDrawable(Uri parse source)
   }
-
-  protected final def prepareDrawable(d: BitmapDrawable) = if(d ne null) {
-      val bitmap = d.getBitmap
-      d.setBounds(0, 0, bitmap.getWidth * 2, bitmap.getHeight * 2)
-      d
-    } else null
 
   protected final def extractMessages(doc: org.jsoup.nodes.Document) = {
     import org.jsoup.nodes.Element

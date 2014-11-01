@@ -19,7 +19,7 @@ private[works] trait ObtainMembers extends NetWork {
       try {
         if(userEntered)
           doRequest(getTimeout) foreach { members =>
-            gui sendMessage members }
+            Chat.handler sendMessage members }
 
       } catch {
         case e: java.net.SocketTimeoutException =>

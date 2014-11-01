@@ -26,7 +26,6 @@ private[chat] trait GuiWorker extends Handler {
 
 private[chat] trait NetworkWorker {
   protected val context: Context
-  protected val gui: GuiWorker
   def login(): Unit
   def logout(): Unit
   def userEntered: Boolean
@@ -37,5 +36,5 @@ private[chat] trait NetworkWorker {
 }
 
 private[chat] object NetworkWorker {
-  def apply(context: Context, gui: GuiWorker) = works.NetWork(context, gui)
+  def apply(context: Context) = works.NetWork(context)
 }

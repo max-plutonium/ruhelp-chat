@@ -1,7 +1,7 @@
 package com.pirotehnika_ruhelp.chat
 package works
 
-import android.graphics.drawable.{BitmapDrawable, Drawable}
+import android.graphics.drawable.Drawable
 import android.util.Log
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.impl.client.DefaultHttpClient
@@ -14,8 +14,7 @@ private[works] trait DownloadDrawable extends NetWork {
   override final def downloadDrawable(url: String) = Future {
     try {
       val resp = new DefaultHttpClient() execute new HttpGet(url)
-      val res = Drawable.createFromStream(resp.getEntity.getContent, null).asInstanceOf[BitmapDrawable]
-      prepareDrawable(res)
+      Drawable.createFromStream(resp.getEntity.getContent, null)
 
     } catch {
       case e: java.io.IOException =>

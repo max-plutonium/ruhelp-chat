@@ -2,7 +2,6 @@ package com.pirotehnika_ruhelp.chat
 
 import android.os.Bundle
 import android.app.ListFragment
-import android.text.Html
 import android.view.ContextMenu.ContextMenuInfo
 import android.view._
 import android.widget.AdapterView

@@ -19,7 +19,7 @@ private[works] trait ObtainMessages extends NetWork {
       try {
         if(inAutoLogin || userEntered)
           doRequest(getTimeout) foreach { messages =>
-            gui sendMessage messages }
+            Chat.handler sendMessage messages }
 
       } catch {
         case e: java.net.SocketTimeoutException =>

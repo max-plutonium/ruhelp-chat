@@ -9,7 +9,7 @@ private[works] trait Logout extends NetWork {
 
   override protected final val performLogout = new Runnable {
     private final def publishProgress(msg: String) =
-      gui sendMessage new UpdateProgress(msg)
+      Chat.handler sendMessage new UpdateProgress(msg)
 
     override def run() = doLogout(enterUrl, getTimeout)
 
