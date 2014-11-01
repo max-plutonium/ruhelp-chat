@@ -25,7 +25,7 @@ private[works] trait ObtainSmiles extends NetWork {
 
     assert(links.size == imgs.size)
     (0 until links.size) map { case i =>
-        Smile(links(i).html, imgs(i) attr "src")
+      Smile(links(i).html, imgs(i) attr "src")
     }
 
   } (Chat.network)

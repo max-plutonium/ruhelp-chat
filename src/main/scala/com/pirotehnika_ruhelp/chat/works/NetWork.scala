@@ -46,6 +46,7 @@ private[works] trait NetWork extends NetworkWorker {
   override def downloadDrawable(url: String): Future[Drawable]
   override def obtainSmiles: Future[Seq[Smile]]
 
+
   protected val performLogin: Runnable
   protected val performLogout: Runnable
   protected val checkMessages: Runnable

@@ -27,7 +27,7 @@ class MainActivity extends TypedActivity {
   private var messagePending = false
   private var progressDialog: ProgressDialog = null
 
-  override protected final def onCreate(savedInstanceState: Bundle) = {
+  override protected final def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
 
     Chat.instance = this
@@ -65,14 +65,14 @@ class MainActivity extends TypedActivity {
     super.onCreateOptionsMenu(menu)
   }
 
-  override final def onPrepareOptionsMenu(menu: Menu): Boolean = {
+  override final def onPrepareOptionsMenu(menu: Menu) = {
     val mi = menu findItem R.id.menu_signing
     assert(mi ne null)
     mi setTitle(if(Chat.networker.userEntered) R.string.chat_menu_sign_off
       else R.string.chat_menu_sign_on)
     mi setOnMenuItemClickListener getLoginListener
     mi setEnabled !loginOrLogout
-    super.onCreateOptionsMenu(menu)
+    super.onPrepareOptionsMenu(menu)
   }
 
   private final def getLoginListener: MenuItem.OnMenuItemClickListener =
@@ -127,14 +127,14 @@ class MainActivity extends TypedActivity {
       true } else false)
   }
 
-  private final def startSpinnerProgress(message: String) = {
+  private final def startSpinnerProgress(message: String) {
     progressDialog = new ProgressDialog(this)
     progressDialog setMessage message
     progressDialog setProgressStyle ProgressDialog.STYLE_SPINNER
     progressDialog show()
   }
 
-  private final def startProgress(titleId: Int, steps: Int) = {
+  private final def startProgress(titleId: Int, steps: Int) {
     progressDialog = new ProgressDialog(this)
     progressDialog setTitle titleId
     progressDialog setMessage ""
@@ -144,17 +144,17 @@ class MainActivity extends TypedActivity {
     progressDialog show()
   }
 
-  private final def updateProgress(message: String) = {
+  private final def updateProgress(message: String) {
     progressDialog setProgress progressDialog.getProgress + 1
     progressDialog setMessage message
   }
 
-  private final def stopProgress() = {
+  private final def stopProgress() {
     progressDialog dismiss()
     progressDialog = null
   }
 
-  private final def startAutoLogin() = {
+  private final def startAutoLogin() {
     Chat.networker tryAutoLogin()
     startSpinnerProgress(getString(R.string.chat_login_progress_title))
     loginOrLogout = true
