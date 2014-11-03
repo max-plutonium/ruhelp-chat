@@ -8,7 +8,6 @@ import android.os._
 import android.preference.PreferenceManager
 import android.provider.Settings
 import android.util.Log
-import android.view.ViewGroup.LayoutParams
 import android.view.inputmethod.InputMethodManager
 import android.view.{Menu, MenuItem}
 import android.widget._

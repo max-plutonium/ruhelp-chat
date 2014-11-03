@@ -23,7 +23,7 @@ class MessagesFragment extends ListFragment {
           getActivity.getMenuInflater.inflate(R.menu.chatlist_item, menu)
           val mi = menu findItem R.id.chatlistmenu_itemname
           assert(mi ne null)
-          mi setTitle s"@$n " setOnMenuItemClickListener {
+          mi setTitle s"@$n" setOnMenuItemClickListener {
             (item: MenuItem) =>
               appendTextCallback foreach(_(item.getTitle.toString))
               true

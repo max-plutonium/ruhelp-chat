@@ -36,7 +36,7 @@ class PostFormFragment extends Fragment {
 
   final def onPostMessage() {
     btnPost setEnabled true
-    tvMessage.setText("", TextView.BufferType.NORMAL)
+    tvMessage setText ""
   }
 
   final def onPostError(errorId: Int) {
@@ -44,5 +44,19 @@ class PostFormFragment extends Fragment {
     Toast makeText(getActivity, errorId, Toast.LENGTH_LONG) show()
   }
 
-  final def appendText(text: String) = tvMessage append text
+  final def appendText(text: String) {
+    val curText = tvMessage.getText.toString
+    val textBefore = curText substring(0, tvMessage.getSelectionStart)
+    val textAfter = curText substring tvMessage.getSelectionStart
+
+    if(textBefore.isEmpty) {
+      tvMessage setText s"$text $textAfter"
+      tvMessage setSelection text.length + 1
+    } else {
+      tvMessage setText s"$textBefore $text $textAfter"
+      tvMessage setSelection textBefore.length + text.length + 2
+    }
+
+    tvMessage setFocusable true
+  }
 }
