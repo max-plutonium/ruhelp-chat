@@ -1,12 +1,11 @@
 package com.pirotehnika_ruhelp.chat
 
 import android.os.Bundle
-import android.app.Fragment
 import android.text.{Editable, TextWatcher}
 import android.view.{LayoutInflater, ViewGroup, View}
 import android.widget.Toast
 
-class PostFormFragment extends Fragment {
+class PostFormFragment extends android.support.v4.app.Fragment {
   import TypedResource._
   import implicits.ListenerBuilders._
   private lazy val btnSmiles = getView findView TR.btnSmiles

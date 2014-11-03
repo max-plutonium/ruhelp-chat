@@ -1,12 +1,11 @@
 package com.pirotehnika_ruhelp.chat
 
 import android.os.Bundle
-import android.app.ListFragment
 import android.view.ContextMenu.ContextMenuInfo
 import android.view._
 import android.widget.AdapterView
 
-class MessagesFragment extends ListFragment {
+class MessagesFragment extends android.support.v4.app.ListFragment {
   import implicits.ListenerBuilders._
   private val messageBuffer = collection.mutable.ArrayBuffer[Message]()
   private lazy val listAdapter = new MessageAdapter(getActivity, messageBuffer)

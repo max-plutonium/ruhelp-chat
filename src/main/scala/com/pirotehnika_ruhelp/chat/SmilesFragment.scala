@@ -1,12 +1,11 @@
 package com.pirotehnika_ruhelp.chat
 
 import android.os.Bundle
-import android.app.Fragment
 import android.view.ViewGroup.LayoutParams
 import android.view.{View, LayoutInflater, ViewGroup}
 import android.widget.{AdapterView, LinearLayout}
 
-class SmilesFragment extends Fragment {
+class SmilesFragment extends android.support.v4.app.Fragment {
   import TypedResource._
   import implicits.ListenerBuilders._
   private val smilesBuffer = collection.mutable.ArrayBuffer[Smile]()

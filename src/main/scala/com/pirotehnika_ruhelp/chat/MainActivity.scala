@@ -35,14 +35,14 @@ class MeasureLayout(context: Context, attributeSet: AttributeSet)
   }
 }
 
-class MainActivity extends TypedActivity {
+class MainActivity extends android.support.v4.app.FragmentActivity {
   private val TAG = classOf[MainActivity].getCanonicalName
   import implicits.ListenerBuilders._
 
   private lazy val prefs = PreferenceManager getDefaultSharedPreferences this
-  private lazy val fragMessages = getFragmentManager.
+  private lazy val fragMessages = getSupportFragmentManager.
     findFragmentById(R.id.fragMessages).asInstanceOf[MessagesFragment]
-  private lazy val fragPostForm = getFragmentManager.
+  private lazy val fragPostForm = getSupportFragmentManager.
     findFragmentById(R.id.fragPostForm).asInstanceOf[PostFormFragment]
   private val fragSmiles = new SmilesFragment
 
@@ -58,10 +58,10 @@ class MainActivity extends TypedActivity {
     Chat.networker = NetworkWorker(this)
 
     setContentView(R.layout.main)
-    val lytMain = findView(TR.lytMain).asInstanceOf[MeasureLayout]
+    val lytMain = findViewById(R.id.lytMain).asInstanceOf[MeasureLayout]
     lytMain.onKeyboardVisibleCallback = Some { (visible: Boolean) =>
       if(visible && fragSmiles.isAdded)
-        getFragmentManager beginTransaction() remove fragSmiles commit()
+        getSupportFragmentManager beginTransaction() remove fragSmiles commit()
       ()
     }
 
@@ -70,7 +70,7 @@ class MainActivity extends TypedActivity {
     }
 
     fragPostForm.onSmilesCallback = Some((smilesShown: Boolean) => {
-        val trans = getFragmentManager.beginTransaction()
+        val trans = getSupportFragmentManager.beginTransaction()
         if(smilesShown) {
           trans.add(R.id.lytSmiles, fragSmiles).addToBackStack(null)
           hideKeyboard()
