@@ -20,8 +20,6 @@ class MeasureLayout(context: Context, attributeSet: AttributeSet)
   var onKeyboardVisibleCallback: Option[Boolean => Unit] = None
 
   override protected def onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-    val propWidth = MeasureSpec.getSize(widthMeasureSpec)
-    val actualWidth = getWidth
     val propHeight = MeasureSpec.getSize(heightMeasureSpec)
     val actualHeight = getHeight
 
@@ -74,11 +72,11 @@ class MainActivity extends TypedActivity {
     fragPostForm.onSmilesCallback = Some((smilesShown: Boolean) => {
         val trans = getFragmentManager.beginTransaction()
         if(smilesShown) {
-          trans.add(R.id.lytSmiles, fragSmiles)
+          trans.add(R.id.lytSmiles, fragSmiles).addToBackStack(null)
           hideKeyboard()
         } else
           trans remove fragSmiles
-        trans.addToBackStack(null).commit()
+        trans.commit()
         ()
       })
 
@@ -92,7 +90,7 @@ class MainActivity extends TypedActivity {
       (text: String) => fragPostForm appendText text
     }
 
-    fragSmiles.onDetachCallback = Some(() => fragPostForm disableSmiles())
+    fragSmiles.onHideCallback = Some(() => fragPostForm setSmilesStateHidden())
 
     if(!prefs.getString(getString(R.string.key_user_name), "").isEmpty)
       startAutoLogin()

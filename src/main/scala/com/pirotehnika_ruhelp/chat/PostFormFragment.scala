@@ -22,7 +22,7 @@ class PostFormFragment extends Fragment {
     inflater inflate(TR.layout.postform_fragment, null)
 
   override final def onActivityCreated(savedInstanceState: Bundle) {
-    btnSmiles setOnClickListener((v: View) => toggleSmiles())
+    btnSmiles setOnClickListener((v: View) => toggleSmilesState())
 
     tvMessage addTextChangedListener new TextWatcher {
       override def beforeTextChanged(s: CharSequence,
@@ -53,7 +53,7 @@ class PostFormFragment extends Fragment {
     super.onActivityCreated(savedInstanceState)
   }
 
-  private final def toggleSmiles() {
+  private final def toggleSmilesState() {
     smilesShown = !smilesShown
     btnSmiles setBackgroundResource {
       if(smilesShown) R.drawable.ic_check_white_36dp
@@ -62,7 +62,7 @@ class PostFormFragment extends Fragment {
     onSmilesCallback foreach(_(smilesShown))
   }
 
-  final def disableSmiles() = if(smilesShown) toggleSmiles()
+  final def setSmilesStateHidden() = if(smilesShown) toggleSmilesState()
 
   final def onUserEnter() {
     btnSmiles setEnabled true
@@ -75,7 +75,7 @@ class PostFormFragment extends Fragment {
   }
 
   final def onUserExit() {
-    disableSmiles()
+    setSmilesStateHidden()
     btnSmiles setEnabled false
     btnSmiles setBackgroundResource R.drawable.ic_mood_grey600_36dp
     tvMessage setEnabled false
@@ -84,7 +84,7 @@ class PostFormFragment extends Fragment {
   }
 
   private final def onSendMessage() {
-    disableSmiles()
+    setSmilesStateHidden()
     btnSmiles setEnabled false
     btnSmiles setBackgroundResource R.drawable.ic_mood_grey600_36dp
     tvMessage setEnabled false
