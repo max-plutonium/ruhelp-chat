@@ -13,6 +13,7 @@
             android:layout_height="36dp"
             android:layout_alignParentLeft="true"
             android:layout_centerVertical="true"
+            android:enabled="false"
             android:background="@drawable/ic_mood_grey600_36dp" />
 
     <EditText
@@ -22,6 +23,7 @@
             android:layout_toRightOf="@+id/btnSmiles"
             android:layout_toLeftOf="@+id/btnPost"
             android:layout_centerVertical="true"
+            android:enabled="false"
             android:inputType="textMultiLine"
             android:maxLines="5"
             android:imeOptions="flagNoExtractUi" />
@@ -31,9 +33,9 @@
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:layout_alignParentRight="true"
+            android:layout_centerVertical="true"
             android:enabled="false"
             android:background="@drawable/ic_send_grey600_36dp"
-            android:focusable="true"
-            android:layout_centerVertical="true" />
+            android:focusable="true" />
 
 </RelativeLayout>

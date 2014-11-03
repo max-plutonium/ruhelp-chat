@@ -7,10 +7,35 @@ import android.os
 import android.os._
 import android.preference.PreferenceManager
 import android.provider.Settings
-import android.util.Log
+import android.util.{AttributeSet, Log}
+import android.view.View.MeasureSpec
 import android.view.inputmethod.InputMethodManager
 import android.view.{Menu, MenuItem}
 import android.widget._
+
+class MeasureLayout(context: Context, attributeSet: AttributeSet)
+  extends LinearLayout(context, attributeSet) {
+  private var keyboardVisible = true
+
+  var onKeyboardVisibleCallback: Option[Boolean => Unit] = None
+
+  override protected def onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+    val propWidth = MeasureSpec.getSize(widthMeasureSpec)
+    val actualWidth = getWidth
+    val propHeight = MeasureSpec.getSize(heightMeasureSpec)
+    val actualHeight = getHeight
+
+    if(actualHeight > propHeight && !keyboardVisible) {
+      keyboardVisible = true
+      onKeyboardVisibleCallback foreach(_(keyboardVisible))
+    } else if(actualHeight < propHeight && keyboardVisible) {
+      keyboardVisible = false
+      onKeyboardVisibleCallback foreach(_(keyboardVisible))
+    }
+
+    super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+  }
+}
 
 class MainActivity extends TypedActivity {
   private val TAG = classOf[MainActivity].getCanonicalName
@@ -25,7 +50,7 @@ class MainActivity extends TypedActivity {
 
   private var loginOrLogout = false
   private var messagePending = false
-  private var progressDialog: ProgressDialog = null
+  private var progressDialog: ProgressDialog = _
 
   override protected final def onCreate(savedInstanceState: Bundle) {
     super.onCreate(savedInstanceState)
@@ -35,14 +60,24 @@ class MainActivity extends TypedActivity {
     Chat.networker = NetworkWorker(this)
 
     setContentView(R.layout.main)
+    val lytMain = findView(TR.lytMain).asInstanceOf[MeasureLayout]
+    lytMain.onKeyboardVisibleCallback = Some { (visible: Boolean) =>
+      if(visible && fragSmiles.isAdded)
+        getFragmentManager beginTransaction() remove fragSmiles commit()
+      ()
+    }
 
     fragMessages.appendTextCallback = Some {
       (text: String) => fragPostForm appendText text
     }
 
-    fragPostForm.onSmilesCallback = Some(() => {
+    fragPostForm.onSmilesCallback = Some((smilesShown: Boolean) => {
         val trans = getFragmentManager.beginTransaction()
-        trans.add(R.id.lytSmiles, fragSmiles)
+        if(smilesShown) {
+          trans.add(R.id.lytSmiles, fragSmiles)
+          hideKeyboard()
+        } else
+          trans remove fragSmiles
         trans.addToBackStack(null).commit()
         ()
       })
@@ -56,6 +91,8 @@ class MainActivity extends TypedActivity {
     fragSmiles.onSmileSelectedCallback = Some {
       (text: String) => fragPostForm appendText text
     }
+
+    fragSmiles.onDetachCallback = Some(() => fragPostForm disableSmiles())
 
     if(!prefs.getString(getString(R.string.key_user_name), "").isEmpty)
       startAutoLogin()
@@ -189,7 +226,7 @@ class MainActivity extends TypedActivity {
 
           if(messagePending) {
             messagePending = false
-            fragPostForm onPostMessage()
+            fragPostForm onMessagePosted()
           }
       }
     }

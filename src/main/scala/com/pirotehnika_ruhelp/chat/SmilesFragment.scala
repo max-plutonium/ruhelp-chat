@@ -18,6 +18,7 @@ class SmilesFragment extends Fragment {
     LayoutParams.MATCH_PARENT, 0)
 
   var onSmileSelectedCallback: Option[String => Unit] = None
+  var onDetachCallback: Option[() => Unit] = None
 
   override final def onCreateView(inflater: LayoutInflater,
     container: ViewGroup, savedInstanceState: Bundle): View =
@@ -40,6 +41,7 @@ class SmilesFragment extends Fragment {
 
   override final def onStop() {
     lytSmiles.setLayoutParams(nonVisibleParams)
+    onDetachCallback foreach(_())
     super.onStop()
   }
 

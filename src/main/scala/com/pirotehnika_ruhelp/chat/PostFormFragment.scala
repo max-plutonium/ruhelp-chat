@@ -2,8 +2,9 @@ package com.pirotehnika_ruhelp.chat
 
 import android.os.Bundle
 import android.app.Fragment
+import android.text.{Editable, TextWatcher}
 import android.view.{LayoutInflater, ViewGroup, View}
-import android.widget.{Toast, TextView}
+import android.widget.Toast
 
 class PostFormFragment extends Fragment {
   import TypedResource._
@@ -11,8 +12,9 @@ class PostFormFragment extends Fragment {
   private lazy val btnSmiles = getView findView TR.btnSmiles
   private lazy val tvMessage = getView findView TR.tvMessage
   private lazy val btnPost = getView findView TR.btnPost
+  private var smilesShown = false
 
-  var onSmilesCallback: Option[() => Unit] = None
+  var onSmilesCallback: Option[Boolean => Unit] = None
   var postMessageCallback: Option[String => Unit] = None
 
   override final def onCreateView(inflater: LayoutInflater,
@@ -20,27 +22,89 @@ class PostFormFragment extends Fragment {
     inflater inflate(TR.layout.postform_fragment, null)
 
   override final def onActivityCreated(savedInstanceState: Bundle) {
-    btnSmiles setOnClickListener((v: View) => onSmilesCallback foreach(_()))
+    btnSmiles setOnClickListener((v: View) => toggleSmiles())
+
+    tvMessage addTextChangedListener new TextWatcher {
+      override def beforeTextChanged(s: CharSequence,
+        start: Int, count: Int, after: Int) { }
+
+      override def onTextChanged(s: CharSequence,
+        start: Int, before: Int, count: Int) { }
+
+      override def afterTextChanged(s: Editable) {
+        if(s.toString.trim.isEmpty) {
+          btnPost setEnabled false
+          btnPost setBackgroundResource R.drawable.ic_send_grey600_36dp
+        } else {
+          btnPost setEnabled true
+          btnPost setBackgroundResource R.drawable.ic_send_white_36dp
+        }
+      }
+    }
+
     btnPost setOnClickListener { (v: View) =>
         val text = tvMessage.getText.toString
         if (!text.trim.isEmpty) {
-          v setEnabled false
+          onSendMessage()
           postMessageCallback foreach(_(text))
         }
       }
+
     super.onActivityCreated(savedInstanceState)
   }
 
-  final def onUserEnter() = btnPost setEnabled true
-  final def onUserExit() = btnPost setEnabled false
+  private final def toggleSmiles() {
+    smilesShown = !smilesShown
+    btnSmiles setBackgroundResource {
+      if(smilesShown) R.drawable.ic_check_white_36dp
+      else R.drawable.ic_mood_white_36dp
+    }
+    onSmilesCallback foreach(_(smilesShown))
+  }
 
-  final def onPostMessage() {
-    btnPost setEnabled true
+  final def disableSmiles() = if(smilesShown) toggleSmiles()
+
+  final def onUserEnter() {
+    btnSmiles setEnabled true
+    btnSmiles setBackgroundResource R.drawable.ic_mood_white_36dp
+    tvMessage setEnabled true
+    if(!tvMessage.getText.toString.trim.isEmpty) {
+      btnPost setEnabled true
+      btnPost setBackgroundResource R.drawable.ic_send_white_36dp
+    }
+  }
+
+  final def onUserExit() {
+    disableSmiles()
+    btnSmiles setEnabled false
+    btnSmiles setBackgroundResource R.drawable.ic_mood_grey600_36dp
+    tvMessage setEnabled false
+    btnPost setEnabled false
+    btnPost setBackgroundResource R.drawable.ic_send_grey600_36dp
+  }
+
+  private final def onSendMessage() {
+    disableSmiles()
+    btnSmiles setEnabled false
+    btnSmiles setBackgroundResource R.drawable.ic_mood_grey600_36dp
+    tvMessage setEnabled false
+    btnPost setEnabled false
+    btnPost setBackgroundResource R.drawable.ic_send_grey600_36dp
+  }
+
+  final def onMessagePosted() {
+    btnSmiles setEnabled true
+    btnSmiles setBackgroundResource R.drawable.ic_mood_white_36dp
+    tvMessage setEnabled true
     tvMessage setText ""
   }
 
   final def onPostError(errorId: Int) {
+    btnSmiles setEnabled true
+    btnSmiles setBackgroundResource R.drawable.ic_mood_white_36dp
+    tvMessage setEnabled true
     btnPost setEnabled true
+    btnPost setBackgroundResource R.drawable.ic_send_white_36dp
     Toast makeText(getActivity, errorId, Toast.LENGTH_LONG) show()
   }
 
