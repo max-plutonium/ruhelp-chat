@@ -18,6 +18,7 @@
             android:name="com.pirotehnika_ruhelp.chat.PostFormFragment"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_margin="5dp"
             tools:layout="@layout/postform_fragment" />
 
     <FrameLayout
