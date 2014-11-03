@@ -8,6 +8,7 @@ import android.os._
 import android.preference.PreferenceManager
 import android.provider.Settings
 import android.util.Log
+import android.view.ViewGroup.LayoutParams
 import android.view.inputmethod.InputMethodManager
 import android.view.{Menu, MenuItem}
 import android.widget._
@@ -52,6 +53,10 @@ class MainActivity extends TypedActivity {
         messagePending = true
         hideKeyboard()
       })
+
+    fragSmiles.onSmileSelectedCallback = Some {
+      (text: String) => fragPostForm appendText text
+    }
 
     if(!prefs.getString(getString(R.string.key_user_name), "").isEmpty)
       startAutoLogin()

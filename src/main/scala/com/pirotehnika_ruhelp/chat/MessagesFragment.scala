@@ -15,7 +15,7 @@ class MessagesFragment extends ListFragment {
 
   override final def onActivityCreated(savedInstanceState: Bundle) {
     getListView setOnCreateContextMenuListener {
-      (menu: ContextMenu, v: View, menuInfo: ContextMenuInfo) => {
+      (menu: ContextMenu, v: View, menuInfo: ContextMenuInfo) =>
         val minfo = menuInfo.asInstanceOf[AdapterView.AdapterContextMenuInfo]
         val n = messageBuffer(minfo.position).name.toString
 
@@ -23,13 +23,14 @@ class MessagesFragment extends ListFragment {
           getActivity.getMenuInflater.inflate(R.menu.chatlist_item, menu)
           val mi = menu findItem R.id.chatlistmenu_itemname
           assert(mi ne null)
-          mi setTitle s"@$n " setOnMenuItemClickListener ((item: MenuItem) => {
+          mi setTitle s"@$n " setOnMenuItemClickListener {
+            (item: MenuItem) =>
               appendTextCallback foreach(_(item.getTitle.toString))
               true
-            })
+            }
           ()
         }
-      }}
+      }
     super.onActivityCreated(savedInstanceState)
   }
 

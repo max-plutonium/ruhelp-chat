@@ -1,35 +1,52 @@
 package com.pirotehnika_ruhelp.chat
 
-import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.app.Fragment
 import android.view.ViewGroup.LayoutParams
 import android.view.{View, LayoutInflater, ViewGroup}
-import android.widget.{ImageView, TableRow, TableLayout}
+import android.widget.{AdapterView, LinearLayout}
 
 class SmilesFragment extends Fragment {
-  private val smilesList = collection.mutable.ArrayBuffer[Smile]()
+  import TypedResource._
+  import implicits.ListenerBuilders._
+  private val smilesBuffer = collection.mutable.ArrayBuffer[Smile]()
+  private lazy val gridAdapter = new SmilesAdapter(getActivity, smilesBuffer)
+  private lazy val lytSmiles = getActivity findView TR.lytSmiles
+  private val visibleParams = new LinearLayout.LayoutParams(
+    LayoutParams.MATCH_PARENT, 300)
+  private val nonVisibleParams = new LinearLayout.LayoutParams(
+    LayoutParams.MATCH_PARENT, 0)
+
+  var onSmileSelectedCallback: Option[String => Unit] = None
 
   override final def onCreateView(inflater: LayoutInflater,
-    container: ViewGroup, savedInstanceState: Bundle): View = {
-    val lytRoot = new TableLayout(getActivity)
-    lytRoot setLayoutParams new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
-
-    val iv = new ImageView(getActivity)
-    iv.setImageDrawable(Drawable.createFromPath(getActivity.getExternalCacheDir +
-      "/smiles/unsure.png"))
-    val row = new TableRow(getActivity)
-    row.addView(iv)
-    lytRoot.addView(row)
-    lytRoot
-  }
+    container: ViewGroup, savedInstanceState: Bundle): View =
+    inflater inflate(TR.layout.smiles_fragment, null)
 
   override final def onActivityCreated(savedInstanceState: Bundle) {
+    val gvSmiles = getView findView TR.gvSmiles
+    gvSmiles setAdapter gridAdapter
+    gvSmiles setOnItemClickListener { (parent: AdapterView[_],
+      view: View, position: Int, id: Long) =>
+        onSmileSelectedCallback foreach(_(smilesBuffer(position).code))
+      }
     super.onActivityCreated(savedInstanceState)
   }
 
+  override final def onStart() {
+    lytSmiles.setLayoutParams(visibleParams)
+    super.onStart()
+  }
+
+  override final def onStop() {
+    lytSmiles.setLayoutParams(nonVisibleParams)
+    super.onStop()
+  }
+
   final def setupSmiles(smiles: Seq[Smile]) {
-    smilesList.clear()
-    smilesList ++= smiles
+    smilesBuffer.clear()
+    smilesBuffer ++= smiles
+    if(isVisible)
+      gridAdapter notifyDataSetChanged()
   }
 }

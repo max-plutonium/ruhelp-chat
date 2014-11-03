@@ -11,8 +11,7 @@
             android:name="com.pirotehnika_ruhelp.chat.MessagesFragment"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1"
-            tools:layout="@layout/messages_fragment" />
+            android:layout_weight="1" />
 
     <fragment
             android:id="@+id/fragPostForm"
@@ -24,7 +23,7 @@
     <FrameLayout
             android:id="@+id/lytSmiles"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
             android:gravity="bottom" />
 
 </LinearLayout>

@@ -3,25 +3,28 @@
         xmlns:android="http://schemas.android.com/apk/res/android"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical" >
+        android:orientation="vertical">
 
     <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:layout_margin="5sp">
+
         <TextView
                 android:id="@+id/tvName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="top|left"
-                android:layout_alignParentLeft="true"/>
+                android:layout_alignParentLeft="true" />
+
         <TextView
                 android:id="@+id/tvDate"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="top|right"
-                android:layout_alignParentRight="true"/>
+                android:layout_alignParentRight="true" />
+
     </RelativeLayout>
 
     <TextView
@@ -32,6 +35,6 @@
             android:layout_marginRight="5sp"
             android:layout_gravity="top"
             android:autoLink="web"
-            android:linksClickable="true" >
-    </TextView>
+            android:linksClickable="true" />
+
 </LinearLayout>
