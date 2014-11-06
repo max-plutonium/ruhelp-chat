@@ -59,37 +59,31 @@ class MainActivity extends android.support.v4.app.FragmentActivity {
 
     setContentView(R.layout.main)
     val lytMain = findViewById(R.id.lytMain).asInstanceOf[MeasureLayout]
-    lytMain.onKeyboardVisibleCallback = Some { (visible: Boolean) =>
-      if(visible && fragSmiles.isAdded)
-        getSupportFragmentManager beginTransaction() remove fragSmiles commit()
-      ()
-    }
+    lytMain.onKeyboardVisibleCallback = Some { visible => if(visible && fragSmiles.isAdded)
+          getSupportFragmentManager beginTransaction() remove fragSmiles commit()
+        ()
+      }
 
-    fragMessages.appendTextCallback = Some {
-      (text: String) => fragPostForm appendText text
-    }
+    fragMessages.appendTextCallback = Some(fragPostForm appendText _)
 
-    fragPostForm.onSmilesCallback = Some((smilesShown: Boolean) => {
+    fragPostForm.onSmilesCallback = Some { smilesShown =>
         val trans = getSupportFragmentManager.beginTransaction()
-        if(smilesShown) {
+        if (smilesShown) {
           trans.add(R.id.lytSmiles, fragSmiles).addToBackStack(null)
           hideKeyboard()
         } else
           trans remove fragSmiles
         trans.commit()
         ()
-      })
+      }
 
-    fragPostForm.postMessageCallback = Some((text: String) => {
+    fragPostForm.postMessageCallback = Some { text =>
         Chat.networker postMessage text
         messagePending = true
         hideKeyboard()
-      })
+      }
 
-    fragSmiles.onSmileSelectedCallback = Some {
-      (text: String) => fragPostForm appendText text
-    }
-
+    fragSmiles.onSmileSelectedCallback = Some(fragPostForm appendText _)
     fragSmiles.onHideCallback = Some(() => fragPostForm setSmilesStateHidden())
 
     if(!prefs.getString(getString(R.string.key_user_name), "").isEmpty)
