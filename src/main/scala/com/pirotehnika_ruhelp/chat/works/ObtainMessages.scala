@@ -20,9 +20,8 @@ private[works] trait ObtainMessages extends NetWork {
   override protected final val checkMessages: Runnable = new Runnable {
     override def run() = { var interval = getMsgInterval
       try {
-        if(inAutoLogin || userEntered)
-          doRequest(getTimeout) foreach { messages =>
-            Chat.handler sendMessage messages }
+        doRequest(getTimeout) foreach { messages =>
+          Chat.handler sendMessage messages }
 
       } catch {
         case e: java.net.SocketTimeoutException =>

@@ -18,11 +18,7 @@ private[works] trait NetworkExecutor extends ExecutionContext {
     Chat.networkHandler removeCallbacks runnable
   protected def schedule(runnable: Runnable, delayMillis: Long) =
     Chat.networkHandler postDelayed(runnable, delayMillis)
-  override def reportFailure(cause: Throwable) {
-    val r = 0
-    r + 9
-    ()
-  }
+  override def reportFailure(cause: Throwable) { }
 }
 
 
@@ -135,7 +131,7 @@ private[works] trait NetWork
       s"ru-Ru; $model; $abi; $bootLoader; $radio) Mobile/$man Version/$verCode $serial/$fp"
   }
 
-  protected final val imageGetter = new ImageGetter {
+  private final val imageGetter = new ImageGetter {
     override final def getDrawable(source: String): Drawable =
       ChatDrawable(Uri parse source)
   }

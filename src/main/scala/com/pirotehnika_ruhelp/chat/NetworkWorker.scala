@@ -5,7 +5,7 @@ import android.graphics.drawable.Drawable
 import android.os.Handler
 import android.text.Spanned
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 
 private[chat] case class Message(id: String, name: Spanned, timestamp: Spanned, text: Spanned)
 
@@ -24,7 +24,7 @@ private[chat] trait GuiWorker extends Handler {
   final def sendMessage(msg: MessageForGui) = super.sendMessage(obtainMessage(1, msg))
 }
 
-private[chat] trait NetworkWorker extends ExecutionContext {
+private[chat] trait NetworkWorker {
   protected val context: Context
   def login(): Unit
   def logout(): Unit
