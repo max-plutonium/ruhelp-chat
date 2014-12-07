@@ -11,6 +11,7 @@ private[works] trait ObtainSmiles extends NetWork {
   private val TAG = classOf[ObtainSmiles].getName
 
   override final def obtainSmiles: Future[Seq[Smile]] = Future {
+    import collection.JavaConversions.mapAsJavaMap
     val url = siteUrl + "?s=" + chatCookies.get("session_id") +
       "&app=forums&module=extras&section=legends"
 

@@ -25,11 +25,12 @@ private[works] trait NetWork extends NetworkWorker {
   protected val chatUrl = siteUrl + "/shoutbox/"
   protected var authKey = ""
   protected var secureHash = ""
-  protected var chatCookies: java.util.Map[String, String] = null
+  protected var chatCookies = collection.mutable.Map[String, String]()
   protected var lastMsgId = ""
   protected var inAutoLogin = false
   protected var isUserEntered = false
   protected lazy val prefs = PreferenceManager getDefaultSharedPreferences context
+  protected lazy val netPrefs = context getSharedPreferences("network", Context.MODE_PRIVATE)
 
 
   override final def login() = Chat.network execute performLogin
@@ -74,27 +75,18 @@ private[works] trait NetWork extends NetworkWorker {
   }
 
   protected final def saveCookies() {
-    import java.util.Map.Entry
-    import collection.JavaConverters.mutableSetAsJavaSetConverter
-    val ed = prefs.edit()
-    val strSet = collection.mutable.Set[String]()
-    chatCookies.entrySet().toArray(new Array[Entry[String, String]](chatCookies.size)).
-      foreach { entry => strSet += entry.getKey + "%" + entry.getValue }
-    ed.putString("secureHash", secureHash)
-    ed.putStringSet("cookies", strSet.asJava).commit()
+    val ed = netPrefs edit()
+    chatCookies foreach { entry => ed.putString(entry._1, entry._2) }
+    ed.putString("secureHash", secureHash).commit()
   }
 
   protected final def restoreCookies() {
-    import collection.JavaConversions.mutableMapAsJavaMap
-    if(chatCookies eq null)
-      chatCookies = collection.mutable.Map[String, String]()
-    secureHash = prefs getString("secureHash", "")
-    val strSet = prefs getStringSet("cookies", null)
-    if(strSet ne null)
-      strSet.toArray(new Array[String](strSet.size)).
-        foreach { str => val lst = str split "%"
-          chatCookies put(lst(0), lst(1))
-      }
+    import collection.JavaConversions.mapAsScalaMap
+    secureHash = netPrefs getString("secureHash", "")
+    chatCookies.clear()
+    for(entry <- netPrefs.getAll)
+      chatCookies += entry.asInstanceOf[(String, String)]
+    chatCookies.remove("secureHash")
   }
 
   protected final def getString(resId: Int) = context getString resId
@@ -121,7 +113,7 @@ private[works] trait NetWork extends NetworkWorker {
     val abi = android.os.Build.CPU_ABI
     val serial = android.os.Build.SERIAL
     val bootLoader = android.os.Build.BOOTLOADER
-    val radio = android.os.Build.getRadioVersion
+    val radio = "" //android.os.Build.getRadioVersion
     val fp = android.os.Build.FINGERPRINT
     s"$userAgent v$verName (Linux; U; Android $sdkName/$sdkCode; " +
       s"ru-Ru; $model; $abi; $bootLoader; $radio) Mobile/$man Version/$verCode $serial/$fp"

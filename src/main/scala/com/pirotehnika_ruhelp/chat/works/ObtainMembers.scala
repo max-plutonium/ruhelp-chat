@@ -35,6 +35,7 @@ private[works] trait ObtainMembers extends NetWork {
     }
 
     private def doRequest(timeout: Int): Option[Members] = {
+      import collection.JavaConversions.mapAsJavaMap
       val url = siteUrl + "?s=" + chatCookies.get("session_id") +
         "&app=shoutbox&module=ajax&section=coreAjax" +
         "&secure_key=" + secureHash + "&type=getMembers"

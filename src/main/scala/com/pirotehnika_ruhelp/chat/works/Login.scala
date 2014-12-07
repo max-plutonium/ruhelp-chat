@@ -16,6 +16,8 @@ private[works] trait Login extends NetWork {
     override def run() = doLogin(enterUrl, getTimeout)
 
     private def doLogin(url: String, timeout: Int): Unit = {
+      import collection.JavaConversions.mapAsJavaMap
+      import collection.JavaConversions.mapAsScalaMap
       val name = prefs getString(getString(R.string.key_user_name), "")
       val pass = prefs getString(getString(R.string.key_user_pass), "")
       val remember = prefs getBoolean(getString(R.string.key_user_remember), false)
@@ -35,7 +37,7 @@ private[works] trait Login extends NetWork {
         Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
 
         val form = resp parse() getElementsByTag "form" forms() get 0
-        assert(authKey isEmpty)
+        assert(authKey.isEmpty)
         authKey = form getElementsByAttributeValue(
           "name", getString(R.string.key_form_auth)) `val`()
         val action = if (form.hasAttr("action"))

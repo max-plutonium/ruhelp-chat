@@ -14,6 +14,7 @@ private[works] trait Logout extends NetWork {
     override def run() = doLogout(enterUrl, getTimeout)
 
     private def doLogout(baseUrl: String, timeout: Int) = {
+      import collection.JavaConversions.mapAsJavaMap
       val url = baseUrl + "&do=logout&k=" + secureHash
 
       try {
