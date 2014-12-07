@@ -25,7 +25,7 @@ private[works] trait NetWork extends NetworkWorker {
   protected val chatUrl = siteUrl + "/shoutbox/"
   protected var authKey = ""
   protected var secureHash = ""
-  protected var chatCookies = collection.mutable.Map[String, String]()
+  protected val chatCookies = collection.mutable.Map[String, String]()
   protected var lastMsgId = ""
   protected var inAutoLogin = false
   protected var isUserEntered = false

@@ -60,7 +60,8 @@ private[works] trait Login extends NetWork {
 
         Log i(TAG, "Connected to " + action)
         Log i(TAG, "Status code [" + resp.statusCode + "] - " + resp.statusMessage)
-        chatCookies = resp.cookies
+        chatCookies.clear()
+        chatCookies ++= resp.cookies
 
         publishProgress("Parse result...")
         Log i(TAG, "Parse result")
