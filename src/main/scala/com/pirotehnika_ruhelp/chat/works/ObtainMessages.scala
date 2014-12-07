@@ -1,8 +1,6 @@
 package com.pirotehnika_ruhelp.chat
 package works
 
-import java.util.concurrent.TimeUnit
-
 import android.util.Log
 import org.jsoup.Jsoup
 
@@ -10,8 +8,13 @@ private[works] trait ObtainMessages extends NetWork {
   private val TAG = classOf[ObtainMessages].getName
 
   override protected def enterUser() = {
-    Chat.network execute checkMessages
+    execute(checkMessages)
     super.enterUser()
+  }
+
+  override protected def exitUser(errorId: Int = -1, errorMsg: String = "") = {
+    stopTask(checkMessages)
+    super.exitUser(errorId, errorMsg)
   }
 
   override protected final val checkMessages: Runnable = new Runnable {
@@ -30,7 +33,7 @@ private[works] trait ObtainMessages extends NetWork {
           handleNetworkError(TAG, "Obtaining new messages", e)
 
       } finally if(userEntered) {
-        Chat.networkSched.schedule(this, interval, TimeUnit.MILLISECONDS)
+        schedule(this, interval)
       }
     }
 

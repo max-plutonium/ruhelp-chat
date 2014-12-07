@@ -9,7 +9,22 @@ import android.text.Html
 import android.text.Html.ImageGetter
 import android.util.Log
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
+
+private[works] trait NetworkExecutor extends ExecutionContext {
+  override def execute(runnable: Runnable) =
+    Chat.networkHandler post runnable
+  protected def stopTask(runnable: Runnable) =
+    Chat.networkHandler removeCallbacks runnable
+  protected def schedule(runnable: Runnable, delayMillis: Long) =
+    Chat.networkHandler postDelayed(runnable, delayMillis)
+  override def reportFailure(cause: Throwable) {
+    val r = 0
+    r + 9
+    ()
+  }
+}
+
 
 private[chat] object NetWork {
   def apply(acontext: Context): NetworkWorker =
@@ -19,7 +34,8 @@ private[chat] object NetWork {
     with PostMessage with DownloadDrawable with ObtainSmiles
 }
 
-private[works] trait NetWork extends NetworkWorker {
+private[works] trait NetWork
+  extends NetworkWorker with NetworkExecutor {
   protected val siteUrl = "http://pirotehnika-ruhelp.com/index.php"
   protected val enterUrl = siteUrl + "?app=core&module=global&section=login"
   protected val chatUrl = siteUrl + "/shoutbox/"
@@ -33,13 +49,13 @@ private[works] trait NetWork extends NetworkWorker {
   protected lazy val netPrefs = context getSharedPreferences("network", Context.MODE_PRIVATE)
 
 
-  override final def login() = Chat.network execute performLogin
-  override final def logout() = Chat.network execute performLogout
+  override final def login() = execute(performLogin)
+  override final def logout() = execute(performLogout)
   override final def userEntered = isUserEntered
 
   override final def tryAutoLogin() {
     restoreCookies()
-    Chat.network execute checkMessages
+    execute(checkMessages)
     inAutoLogin = true
   }
 

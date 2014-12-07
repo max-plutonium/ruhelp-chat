@@ -82,7 +82,7 @@ private[works] trait Login extends NetWork {
           url + "&do=logout") get 0 attr "href"
 
         // Из нее берем параметр k - он нужен для составления запросов
-        assert(secureHash isEmpty)
+        assert(secureHash.isEmpty)
         secureHash = Uri parse link getQueryParameter "k"
 
         enterUser()

@@ -29,5 +29,5 @@ private[works] trait ObtainSmiles extends NetWork {
       Smile(links(i).html, imgs(i) attr "src")
     }
 
-  } (Chat.network)
+  } (this)
 }

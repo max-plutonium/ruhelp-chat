@@ -87,7 +87,9 @@ class MainActivity extends android.support.v4.app.FragmentActivity {
     fragSmiles.onHideCallback = Some(() => fragPostForm setSmilesStateHidden())
 
     if(!prefs.getString(getString(R.string.key_user_name), "").isEmpty)
-      startAutoLogin()
+      Chat.handler postDelayed(new Runnable {
+        override def run(): Unit = startAutoLogin()
+      }, 100)
   }
 
   override final def onCreateOptionsMenu(menu: Menu) = {

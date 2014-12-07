@@ -22,5 +22,5 @@ private[works] trait DownloadDrawable extends NetWork {
         e printStackTrace()
         null
     }
-  } (Chat.network)
+  } (this)
 }
