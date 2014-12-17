@@ -125,10 +125,9 @@ private[works] trait NetWork
     val abi = android.os.Build.CPU_ABI
     val serial = android.os.Build.SERIAL
     val bootLoader = android.os.Build.BOOTLOADER
-    val radio = "" //android.os.Build.getRadioVersion
     val fp = android.os.Build.FINGERPRINT
     s"$userAgent v$verName (Linux; U; Android $sdkName/$sdkCode; " +
-      s"ru-Ru; $model; $abi; $bootLoader; $radio) Mobile/$man Version/$verCode $serial/$fp"
+      s"ru-Ru; $model; $abi; $bootLoader) Mobile/$man Version/$verCode $serial/$fp"
   }
 
   private final val imageGetter = new ImageGetter {

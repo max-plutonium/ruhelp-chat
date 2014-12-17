@@ -22,10 +22,10 @@
         <PreferenceCategory
                 android:title="@string/prefs_user.opts">
 
-            <SwitchPreference
+            <CheckBoxPreference
                     android:key="@string/key_user_remember"
                     android:title="@string/prefs_user_remember" />
-            <SwitchPreference
+            <CheckBoxPreference
                     android:key="@string/key_user_anon"
                     android:title="@string/prefs_user_anon"
                     android:summary="@string/prefs_user_anon2" />
